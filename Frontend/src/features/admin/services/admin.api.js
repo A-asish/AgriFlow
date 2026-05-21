@@ -21,9 +21,9 @@ export const adminService = {
     bulkActionFarmers: (data) => api.post('/admin/farmers/bulk-action/', data),
     exportFarmers: (params) => api.get('/admin/farmers/export/', { params, responseType: 'blob' }),
     // Crop Management
-    listCrops: (params) => api.get('/admin/crops/', { params }),
-    getCropDetail: (id) => api.get(`/admin/crops/${id}/`),
-    registerCrop: (data) => api.post('/admin/crops/register/', data),
+    listCrops: (params) => api.get('crops/', { params }),
+    getCropDetail: (id) => api.get(`crops/${id}/`),
+    registerCrop: (data) => api.post('crops/register/', data),
     // Financial Management
     getFinanceDashboard: () => api.get('/admin/finance/dashboard/'),
     getFinancialSummary: () => api.get('/admin/dashboard/stats/'),
@@ -59,5 +59,36 @@ export const adminService = {
     getAnalyticsRevenueByRegion: () => api.get('/admin/analytics/revenue-by-region/'),
     // Logs
     listLogs: (params) => api.get('/admin/logs/', { params }),
+    
+    // Admin User Management
+    listAdmins: () => api.get('/admin/admins/'),
+    createAdmin: (data) => api.post('/admin/admins/create/', data),
+    deleteAdmin: (id) => api.delete(`/admin/admins/${id}/`),
+    promoteFarmer: (id) => api.put(`/admin/farmers/${id}/`, { promote_to_admin: true }),
+    
+    // Knowledge Base Management
+    listKnowledgeBase: (params) => api.get('crops/api/knowledge-base/', { params }),
+    getKnowledgeBaseDetail: (id) => api.get(`crops/api/knowledge-base/${id}/`),
+    createKnowledgeBase: (data) => api.post('crops/api/knowledge-base/', data),
+    updateKnowledgeBase: (id, data) => api.put(`crops/api/knowledge-base/${id}/`, data),
+    deleteKnowledgeBase: (id) => api.delete(`crops/api/knowledge-base/${id}/`),
+    
+    // Crop Configurations
+    listCropConfigs: (params) => api.get('crops/api/crop-configs/', { params }),
+    getCropConfigDetail: (id) => api.get(`crops/api/crop-configs/${id}/`),
+    createCropConfig: (data) => api.post('crops/api/crop-configs/', data),
+    updateCropConfig: (id, data) => api.put(`crops/api/crop-configs/${id}/`, data),
+    deleteCropConfig: (id) => api.delete(`crops/api/crop-configs/${id}/`),
+    
+    // Crop Activity Rules
+    listCropActivityRules: (params) => api.get('crops/api/crop-activity-rules/', { params }),
+    getCropActivityRuleDetail: (id) => api.get(`crops/api/crop-activity-rules/${id}/`),
+    createCropActivityRule: (data) => api.post('crops/api/crop-activity-rules/', data),
+    updateCropActivityRule: (id, data) => api.put(`crops/api/crop-activity-rules/${id}/`, data),
+    deleteCropActivityRule: (id) => api.delete(`crops/api/crop-activity-rules/${id}/`),
+    
+    // Options
+    getCropConfigOptions: () => api.get('crops/api/crop-config-options/'),
+    getAvailableCrops: () => api.get('crops/api/available-crops/'),
 };
 export default adminService;

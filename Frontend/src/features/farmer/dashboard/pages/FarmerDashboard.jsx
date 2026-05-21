@@ -5,6 +5,7 @@ import { WeatherWidget } from '@/features/farmer/dashboard/components/WeatherWid
 import { RecentActivity } from '@/features/farmer/dashboard/components/RecentActivity';
 import { CropStatus } from '@/features/farmer/dashboard/components/CropStatus';
 import { LivestockStatus } from '@/features/farmer/dashboard/components/LivestockStatus';
+import { DashboardAlerts } from '@/features/farmer/dashboard/components/DashboardAlerts';
 import { Wheat, Beef, TrendingUp, AlertTriangle } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useState, useEffect } from 'react';
@@ -100,6 +101,8 @@ const Index = () => {
           <StatCard title={t('dashboard.totalIncome')} value={formatLargeNumber(stats.totalIncome)} icon={TrendingUp} variant="amber"/>
           <StatCard title={t('dashboard.totalExpense')} value={formatLargeNumber(stats.totalExpense)} icon={AlertTriangle} variant="rose"/>
         </div>
+
+        <DashboardAlerts />
 
         {/* Weather Widget and Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 sm:gap-10 lg:gap-12">

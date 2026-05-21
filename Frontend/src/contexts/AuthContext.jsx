@@ -1,6 +1,7 @@
 // AuthContext.tsx
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { authService } from '@/features/auth/services/auth.api';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 const AuthContext = createContext(undefined);
 export const useAuth = () => {
     const context = useContext(AuthContext);
@@ -64,7 +65,7 @@ export function AuthProvider({ children }) {
             console.error('Login error:', err.response?.data);
             return {
                 success: false,
-                message: err.response?.data?.error || err.response?.data?.detail || 'Login failed'
+                message: getApiErrorMessage(err, 'Unable to sign in. Please check your email and password.'),
             };
         }
     }, []);
@@ -130,7 +131,10 @@ export function AuthProvider({ children }) {
                         };
                     }
                     // Single error message
-                    const errorMessage = errorData.detail || errorData.message || errorData.error || 'Registration failed. Please check your information.';
+                    const errorMessage = getApiErrorMessage(
+                        { response: { data: errorData } },
+                        'Registration failed. Please check your information.',
+                    );
                     return {
                         success: false,
                         message: errorMessage,
@@ -141,7 +145,10 @@ export function AuthProvider({ children }) {
             // Network or other errors
             return {
                 success: false,
-                message: err.message || 'Network error. Please check your connection and try again.'
+                message: getApiErrorMessage(
+                    err,
+                    'Network error. Please check your connection and try again.',
+                ),
             };
         }
     }, []);

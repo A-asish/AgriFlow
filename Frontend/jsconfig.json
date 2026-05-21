@@ -4,22 +4,13 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "baseUrl": "",
+    "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "src/*"
-      ]
+      "@/*": ["src/*"]
     },
-    "types": [
-      "vite/client"
-    ]
+    "types": ["vite/client"],
+    "ignoreDeprecations": "6.0"
   },
-  "include": [
-    "src",
-    "vite.config.js"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "include": ["src", "vite.config.js"],
+  "exclude": ["node_modules", "dist"]
 }
