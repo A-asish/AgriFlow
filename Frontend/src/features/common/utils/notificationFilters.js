@@ -7,14 +7,18 @@ export const NOTIFICATION_FEED_TYPES = ['admin', 'weather'];
 /** active = pending work; all = include history; completed = done tasks only */
 export const FARM_ALERT_STATUSES = ['active', 'all', 'completed'];
 
+/** Backend sends `notification_type`; some legacy paths used `type`. */
+export function getNotificationType(notification) {
+    const raw = notification?.notification_type ?? notification?.type ?? '';
+    return String(raw).toLowerCase();
+}
+
 export function isFarmAlert(notification) {
-    const type = notification?.type?.toLowerCase?.() ?? '';
-    return FARM_ALERT_TYPES.includes(type);
+    return FARM_ALERT_TYPES.includes(getNotificationType(notification));
 }
 
 export function isFeedNotification(notification) {
-    const type = notification?.type?.toLowerCase?.() ?? '';
-    return NOTIFICATION_FEED_TYPES.includes(type);
+    return NOTIFICATION_FEED_TYPES.includes(getNotificationType(notification));
 }
 
 export function filterFarmAlerts(notifications = [], { status = 'active' } = {}) {

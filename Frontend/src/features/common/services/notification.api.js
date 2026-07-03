@@ -50,11 +50,28 @@ const notificationApi = {
 
     /**
      * Dashboard farm alerts (localized).
-     * @param {object} options
-     * @param {'active'|'all'|'completed'} options.status - active = not completed (includes read); all = full history
+     * Uses /notifications/farm-alerts/ when available; falls back to typed list API.
      */
     getFarmAlerts: async ({ status = 'active' } = {}) => {
+        // Triggers daily crop/livestock generation on the backend
         await api.get('/notifications/', { params: withLang({ limit: 1 }) });
+
+        try {
+            const response = await api.get('/notifications/farm-alerts/', {
+                params: withLang({ status }),
+            });
+            const crop = (response.data?.crop || []).map((n) => ({
+                ...n,
+                notification_type: 'crop',
+            }));
+            const livestock = (response.data?.livestock || []).map((n) => ({
+                ...n,
+                notification_type: 'livestock',
+            }));
+            return { crop, livestock, all: [...crop, ...livestock] };
+        } catch (error) {
+            console.warn('farm-alerts endpoint failed, falling back to typed notifications', error);
+        }
 
         const [cropRes, livestockRes] = await Promise.all([
             api.get('/notifications/', { params: withLang({ type: 'crop', limit: 100 }) }),

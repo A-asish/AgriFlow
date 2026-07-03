@@ -19,7 +19,9 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         const token = localStorage.getItem('access_token');
         if (token) {
-            authService.getProfile()
+            const storedUser = localStorage.getItem('user');
+            const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+            authService.getProfile(parsedUser?.id)
                 .then((res) => {
                 if (res.data?.success) {
                     setUser(res.data.data);
@@ -169,7 +171,11 @@ export function AuthProvider({ children }) {
     }, []);
     const refreshProfile = useCallback(async () => {
         try {
-            const res = await authService.getProfile();
+            const stored = localStorage.getItem('user');
+            const parsed = stored ? JSON.parse(stored) : null;
+            const profileId = user?.id || parsed?.id;
+            if (!profileId) return;
+            const res = await authService.getProfile(profileId);
             if (res.data?.success) {
                 setUser(res.data.data);
                 localStorage.setItem('user', JSON.stringify(res.data.data));
@@ -182,7 +188,7 @@ export function AuthProvider({ children }) {
         catch (e) {
             console.warn('Could not refresh profile:', e);
         }
-    }, []);
+    }, [user?.id]);
     const value = useMemo(() => ({
         user,
         loading,

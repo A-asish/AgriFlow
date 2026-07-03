@@ -12,8 +12,21 @@ export const authService = {
         }
         return api.get('auth/profile/');
     },
-    // Update profile
-    updateProfile: (id, data) => api.patch(`auth/profile/${id}/`, data),
+    // Update profile (supports JSON or multipart when profile_picture is a File)
+    updateProfile: (id, data) => {
+        const hasFile = data?.profile_picture instanceof File;
+        if (!hasFile) {
+            return api.patch(`auth/profile/${id}/`, data);
+        }
+        const formData = new FormData();
+        Object.entries(data).forEach(([key, value]) => {
+            if (value === null || value === undefined || value === '') return;
+            formData.append(key, value);
+        });
+        return api.patch(`auth/profile/${id}/`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+    },
     // Email verification
     verifyEmail: (token) => api.get(`auth/verify-email/?token=${token}`),
     resendVerification: (email) => api.post('auth/resend-verification/', { email }),
@@ -26,7 +39,7 @@ export const authService = {
     // Token refresh
     refreshToken: (refresh) => api.post('auth/token/refresh/', { refresh }),
     // Account management
-    deleteAccount: () => api.delete('auth/delete-account/'),
+    deleteAccount: (password) => api.delete('auth/delete-account/', { data: { password } }),
     // Terms
     checkTerms: () => api.get('auth/check-terms/'),
     acceptTerms: () => api.post('auth/accept-terms/'),

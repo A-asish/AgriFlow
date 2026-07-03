@@ -1,20 +1,25 @@
+import { getNotificationType } from '@/features/common/utils/notificationFilters';
+import { getAppLanguage } from '@/shared/utils/appLanguage';
+
 const PRIORITY_ORDER = { critical: 0, urgent: 1, high: 2, medium: 3, low: 4 };
 
 export function normalizeReminder(activity, source) {
     const resolvedSource =
         source ??
-        (activity.type === 'livestock' || activity.notification_type === 'livestock'
-            ? 'livestock'
-            : 'crop');
+        (getNotificationType(activity) === 'livestock' ? 'livestock' : 'crop');
 
     const id = activity.notification_id ?? activity.id;
     const sourceId = activity.source_id;
-    const cropId =
-        activity.crop_id ?? activity.crop ?? (resolvedSource === 'crop' ? sourceId : null);
-    const animalId =
-        activity.animal_id ??
-        activity.animal ??
-        (resolvedSource === 'livestock' ? sourceId : null);
+    
+    const rawCrop = activity.crop_id ?? activity.crop;
+    const cropId = (typeof rawCrop === 'object' && rawCrop !== null)
+        ? (rawCrop.id ?? rawCrop.crop_id)
+        : rawCrop ?? (resolvedSource === 'crop' ? sourceId : null);
+
+    const rawAnimal = activity.animal_id ?? activity.animal;
+    const animalId = (typeof rawAnimal === 'object' && rawAnimal !== null)
+        ? (rawAnimal.id ?? rawAnimal.animal_id)
+        : rawAnimal ?? (resolvedSource === 'livestock' ? sourceId : null);
 
     let actionUrl = activity.action_url;
     if (!actionUrl) {
@@ -25,21 +30,28 @@ export function normalizeReminder(activity, source) {
         }
     }
 
+    const dueDate =
+        activity.due_date ??
+        activity.scheduled_date ??
+        activity.reminder_date ??
+        activity.created_at ??
+        null;
+
+    const lang = getAppLanguage();
+    const title = lang === 'np'
+        ? (activity.title_np ?? activity.title ?? activity.activity_type ?? activity.type_display ?? 'स्मरणपत्र')
+        : (activity.title ?? activity.activity_type ?? activity.type_display ?? 'Reminder');
+
+    const message = lang === 'np'
+        ? (activity.message_np ?? activity.description_np ?? activity.details_np ?? activity.message ?? activity.description ?? activity.details ?? '')
+        : (activity.message ?? activity.description ?? activity.details ?? '');
+
     return {
         id,
         source: resolvedSource,
-        title:
-            activity.title ??
-            activity.activity_type ??
-            activity.type_display ??
-            'Reminder',
-        message: activity.message ?? activity.description ?? activity.details ?? '',
-        dueDate:
-            activity.due_date ??
-            activity.scheduled_date ??
-            activity.reminder_date ??
-            activity.created_at ??
-            null,
+        title,
+        message,
+        dueDate,
         priority: activity.priority ?? 'medium',
         priorityDisplay: activity.priority_display,
         isRead: Boolean(activity.is_read),

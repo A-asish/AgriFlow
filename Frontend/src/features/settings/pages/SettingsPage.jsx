@@ -1,97 +1,174 @@
+// src/features/settings/pages/SettingsPage.jsx
+
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MainLayout } from '@/features/common/components/layout/MainLayout';
-import { Button } from '@/shared/components/ui/button';
-import { Input } from '@/shared/components/ui/input';
-import { Label } from '@/shared/components/ui/label';
-import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { User, Globe, LogOut, Save, Camera } from 'lucide-react';
-import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { authService } from '@/features/auth/services/auth.api';
+import { getApiErrorMessage } from '@/shared/utils/apiError';
 import { toast } from 'sonner';
-import { Switch } from '@/shared/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
+import { Skeleton } from '@/shared/components/ui/skeleton';
+import ProfileTab from '../components/ProfileTab';
+import PreferencesTab from '../components/PreferencesTab';
+import SecurityTab from '../components/SecurityTab';
+
 const SettingsPage = () => {
-    const { user, logout } = useAuth();
-    const { language, setLanguage, t } = useLanguage();
-    const [loading, setLoading] = useState(false);
-    const [form, setForm] = useState({
-        full_name: user?.full_name || '',
-        email: user?.email || '',
-        phone: user?.phone || '',
+    const { t, language, setLanguage } = useLanguage();
+    const { user, loading: authLoading, isAuthenticated, refreshProfile, logout } = useAuth();
+    const navigate = useNavigate();
+
+    const [saving, setSaving] = useState(false);
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const [formData, setFormData] = useState({
+        first_name: '',
+        last_name: '',
+        phone: '',
+        location: '',
+        district: '',
+        geographical_region: '',
+        farm_name: '',
+        total_farm_area: '',
+        farm_village: '',
+        farm_municipality: '',
+        farm_district: '',
+        farm_province: '',
+        farm_ward_number: '',
+        farm_altitude: '',
+        farm_soil_type: '',
+        water_source: '',
     });
-    const handleSave = async () => {
-        setLoading(true);
-        await new Promise(r => setTimeout(r, 1000));
-        setLoading(false);
-        toast.success(t('settings.profileUpdated'));
+
+    useEffect(() => {
+        if (!user) return;
+        setFormData({
+            first_name: user.first_name || '',
+            last_name: user.last_name || '',
+            phone: user.phone || '',
+            location: user.location || '',
+            district: user.district || '',
+            geographical_region: user.geographical_region || '',
+            farm_name: user.farm_name || '',
+            total_farm_area: user.total_farm_area ?? '',
+            farm_village: user.farm_village || '',
+            farm_municipality: user.farm_municipality || '',
+            farm_district: user.farm_district || '',
+            farm_province: user.farm_province || '',
+            farm_ward_number: user.farm_ward_number ?? '',
+            farm_altitude: user.farm_altitude ?? '',
+            farm_soil_type: user.farm_soil_type || '',
+            water_source: user.water_source || '',
+        });
+    }, [user]);
+
+    // Handlers
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
     };
-    return (<MainLayout title={t('settings.title')} subtitle={t('settings.subtitle')}>
-      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-8">
-        <div className="farm-card p-6 sm:p-10">
-          <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-10 mb-8 sm:mb-12">
-            <div className="relative group">
-              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-primary/10 flex items-center justify-center border-4 border-background shadow-lg overflow-hidden">
-                <User className="w-12 h-12 sm:w-16 sm:h-16 text-primary"/>
-              </div>
-              <button className="absolute bottom-1 right-1 p-2 sm:p-2.5 rounded-full gradient-hero text-primary-foreground shadow-md hover:scale-110 transition-transform">
-                <Camera className="w-4 h-4"/>
-              </button>
-            </div>
-            <div className="text-center sm:text-left flex-1 min-w-0">
-              <h3 className="text-2xl sm:text-3xl font-extrabold text-foreground mb-1 sm:mb-2 truncate">{user?.full_name || user?.username}</h3>
-              <p className="text-sm sm:text-base text-muted-foreground font-medium mb-4 sm:mb-6">{user?.email}</p>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-            <div className="space-y-1.5">
-              <Label>{t('settings.fullName')}</Label>
-              <Input value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} className="rounded-xl"/>
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t('settings.email')}</Label>
-              <Input value={form.email} disabled className="rounded-xl bg-muted/50"/>
-            </div>
-            <div className="flex items-end">
-              <Button onClick={handleSave} disabled={loading} className="w-full rounded-xl h-11 font-bold gap-2">
-                <Save className="w-4 h-4"/> {loading ? t('settings.saving') : t('settings.saveChanges')}
-              </Button>
-            </div>
-          </div>
-        </div>
+    const handleSelectChange = (name, value) => {
+        setFormData((prev) => ({ ...prev, [name]: value }));
+    };
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
-          <div className="farm-card p-6 sm:p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <Globe className="w-5 h-5 text-primary"/>
-              <h3 className="text-lg font-bold">{t('settings.language')}</h3>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border">
-                <span className="text-sm font-bold">English</span>
-                <Switch checked={language === 'en'} onCheckedChange={() => setLanguage('en')}/>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border">
-                <span className="text-sm font-bold">नेपाली (Nepali)</span>
-                <Switch checked={language === 'np'} onCheckedChange={() => setLanguage('np')}/>
-              </div>
-            </div>
-          </div>
-        </div>
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!user) return;
 
-        <div className="farm-card p-6 sm:p-8 border-destructive/20 bg-destructive/5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <LogOut className="w-5 h-5 text-destructive"/>
-              <div>
-                <h3 className="text-lg font-bold text-destructive">{t('settings.logout')}</h3>
-                <p className="text-xs text-muted-foreground">{t('settings.logoutDesc')}</p>
-              </div>
+        setSaving(true);
+        try {
+            const updateData = {
+                first_name: formData.first_name,
+                last_name: formData.last_name,
+                phone: formData.phone,
+                location: formData.location,
+                district: formData.district,
+                geographical_region: formData.geographical_region || null,
+                farm_name: formData.farm_name,
+                total_farm_area: formData.total_farm_area ? parseFloat(formData.total_farm_area) : null,
+                farm_village: formData.farm_village,
+                farm_municipality: formData.farm_municipality,
+                farm_district: formData.farm_district,
+                farm_province: formData.farm_province,
+                farm_ward_number: formData.farm_ward_number ? parseInt(formData.farm_ward_number, 10) : null,
+                farm_altitude: formData.farm_altitude ? parseFloat(formData.farm_altitude) : null,
+                farm_soil_type: formData.farm_soil_type || null,
+                water_source: formData.water_source || null,
+            };
+
+            await authService.updateProfile(user.id, updateData);
+            await refreshProfile();
+            toast.success(t('settings.profileUpdated'));
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, t('common.error')));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (authLoading) {
+        return (
+            <MainLayout title={t('settings.title')} subtitle={t('settings.subtitle')}>
+                <div className="max-w-5xl mx-auto space-y-6">
+                    <Skeleton className="h-12 w-full max-w-md rounded-xl" />
+                    <Skeleton className="h-96 rounded-3xl" />
+                </div>
+            </MainLayout>
+        );
+    }
+
+    if (!isAuthenticated || !user) {
+        return (
+            <MainLayout title={t('settings.title')} subtitle={t('settings.subtitle')}>
+                <div className="flex justify-center items-center h-64">
+                    <p className="text-muted-foreground">{t('dashboard.loginToView')}</p>
+                </div>
+            </MainLayout>
+        );
+    }
+
+    return (
+        <MainLayout title={t('settings.title')} subtitle={t('settings.subtitle')}>
+            <div className="max-w-5xl mx-auto space-y-6">
+                <Tabs defaultValue="profile" className="space-y-6">
+                    <TabsList className="grid grid-cols-3 w-full max-w-lg bg-slate-100 rounded-xl p-1">
+                        <TabsTrigger value="profile" className="rounded-lg data-[state=active]:bg-white">
+                            {t('settings.profile')}
+                        </TabsTrigger>
+                        <TabsTrigger value="preferences" className="rounded-lg data-[state=active]:bg-white">
+                            {t('settings.preferences')}
+                        </TabsTrigger>
+                        <TabsTrigger value="security" className="rounded-lg data-[state=active]:bg-white">
+                            {t('settings.security')}
+                        </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="profile">
+                        <ProfileTab
+                            user={user}
+                            formData={formData}
+                            saving={saving}
+                            uploadingPhoto={uploadingPhoto}
+                            setUploadingPhoto={setUploadingPhoto}
+                            handleInputChange={handleInputChange}
+                            handleSelectChange={handleSelectChange}
+                            handleSubmit={handleSubmit}
+                            refreshProfile={refreshProfile}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="preferences">
+                        <PreferencesTab language={language} setLanguage={setLanguage} user={user} />
+                    </TabsContent>
+
+                    <TabsContent value="security">
+                        <SecurityTab logout={logout} navigate={navigate} />
+                    </TabsContent>
+                </Tabs>
             </div>
-            <Button variant="destructive" className="rounded-xl font-bold px-6" onClick={logout}>
-              {t('settings.logout')}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </MainLayout>);
+        </MainLayout>
+    );
 };
+
 export default SettingsPage;

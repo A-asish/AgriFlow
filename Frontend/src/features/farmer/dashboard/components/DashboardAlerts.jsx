@@ -256,7 +256,7 @@ export function DashboardAlerts() {
                             resetPagination();
                         }}
                     >
-                        <SelectTrigger className="w-[130px] rounded-xl h-9 text-xs">
+                        <SelectTrigger className="w-32.5 rounded-xl h-9 text-xs">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -274,7 +274,7 @@ export function DashboardAlerts() {
                             resetPagination();
                         }}
                     >
-                        <SelectTrigger className="w-[155px] rounded-xl h-9 gap-2 text-xs">
+                        <SelectTrigger className="w-38.75 rounded-xl h-9 gap-2 text-xs">
                             <Filter className="w-3.5 h-3.5 opacity-60 shrink-0" />
                             <SelectValue />
                         </SelectTrigger>
@@ -304,7 +304,7 @@ export function DashboardAlerts() {
                 <div className="flex items-center gap-2 flex-wrap p-3 rounded-xl bg-muted/30 border border-muted/50">
                     <SlidersHorizontal className="w-4 h-4 text-muted-foreground shrink-0" />
                     <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                        <SelectTrigger className="w-[140px] rounded-lg h-8 text-xs bg-background">
+                        <SelectTrigger className="w-35 rounded-lg h-8 text-xs bg-background">
                             <SelectValue placeholder={t('dashboard.filterSeverity')} />
                         </SelectTrigger>
                         <SelectContent>
@@ -317,7 +317,7 @@ export function DashboardAlerts() {
                         </SelectContent>
                     </Select>
                     <Select value={dueDateFilter} onValueChange={setDueDateFilter}>
-                        <SelectTrigger className="w-[150px] rounded-lg h-8 text-xs bg-background">
+                        <SelectTrigger className="w-37.5 rounded-lg h-8 text-xs bg-background">
                             <SelectValue placeholder={t('dashboard.filterDueDate')} />
                         </SelectTrigger>
                         <SelectContent>
@@ -330,7 +330,7 @@ export function DashboardAlerts() {
                         </SelectContent>
                     </Select>
                     <Select value={sortOrder} onValueChange={setSortOrder}>
-                        <SelectTrigger className="w-[150px] rounded-lg h-8 text-xs bg-background">
+                        <SelectTrigger className="w-37.5 rounded-lg h-8 text-xs bg-background">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -395,16 +395,16 @@ export function DashboardAlerts() {
                                         }
                                     }}
                                     className={cn(
-                                        'p-4 rounded-xl border cursor-pointer transition-colors hover:shadow-md',
+                                        'p-3 rounded-xl border cursor-pointer transition-colors hover:shadow-md',
                                         sourceColors[alert.source],
                                         alert.isCompleted && 'opacity-75',
                                     )}
                                 >
                                     <div className="flex items-start justify-between gap-3">
-                                        <div className="flex items-start gap-3 min-w-0 flex-1">
-                                            <Icon className="w-5 h-5 shrink-0 mt-0.5" />
+                                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                                            <Icon className="w-4.5 h-4.5 shrink-0 mt-0.5" />
                                             <div className="min-w-0 flex-1">
-                                                <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                <div className="flex flex-wrap items-center gap-2 mb-0.5">
                                                     <span
                                                         className={cn(
                                                             'font-semibold text-sm truncate',
@@ -418,29 +418,39 @@ export function DashboardAlerts() {
                                                     <Badge
                                                         variant="outline"
                                                         className={cn(
-                                                            'text-xs capitalize',
+                                                            'text-[10px] h-4.5 px-1.5 capitalize',
                                                             priorityStyles[alert.priority] ??
                                                                 priorityStyles.medium,
                                                         )}
                                                     >
                                                         {alert.priorityDisplay || alert.priority}
                                                     </Badge>
+                                                    {alert.source === 'crop' && alert.cropName && (
+                                                        <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 bg-green-50 text-green-700 border-green-200 font-normal">
+                                                            🌾 {alert.cropName}
+                                                        </Badge>
+                                                    )}
+                                                    {alert.source === 'livestock' && alert.animalTag && (
+                                                        <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 bg-amber-50 text-amber-700 border-amber-100 font-normal">
+                                                            🐄 {alert.animalTag}
+                                                        </Badge>
+                                                    )}
                                                     {alert.isCompleted && (
-                                                        <Badge className="text-xs bg-green-600 text-white">
+                                                        <Badge className="text-[10px] h-4.5 px-1.5 bg-green-600 text-white font-normal">
                                                             {t('dashboard.alertCompleted')}
                                                         </Badge>
                                                     )}
                                                     {!alert.isRead && !alert.isCompleted && (
-                                                        <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" />
                                                     )}
                                                 </div>
                                                 {alert.message && (
-                                                    <p className="text-sm opacity-90 line-clamp-3 whitespace-pre-line">
+                                                    <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5 opacity-90">
                                                         {alert.message}
                                                     </p>
                                                 )}
-                                                <div className="flex flex-wrap items-center gap-3 mt-2 text-xs opacity-80">
-                                                    <span className="capitalize">
+                                                <div className="flex flex-wrap items-center gap-3 mt-1 text-[11px] opacity-75">
+                                                    <span className="capitalize font-medium">
                                                         {alert.source === 'crop'
                                                             ? t('nav.crops')
                                                             : t('nav.livestock')}
@@ -514,7 +524,7 @@ export function DashboardAlerts() {
                                 resetPagination();
                             }}
                         >
-                            <SelectTrigger className="w-[70px] h-8 rounded-lg text-xs">
+                            <SelectTrigger className="w-17.5 h-8 rounded-lg text-xs">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -539,7 +549,7 @@ export function DashboardAlerts() {
                                 <ChevronLeft className="w-3.5 h-3.5" />
                                 {t('common.previous')}
                             </Button>
-                            <span className="text-xs text-muted-foreground min-w-[100px] text-center">
+                            <span className="text-xs text-muted-foreground min-w-25 text-center">
                                 {language === 'np'
                                     ? `पृष्ठ ${pagination.currentPage} / ${pagination.totalPages}`
                                     : `Page ${pagination.currentPage} of ${pagination.totalPages}`}

@@ -37,7 +37,7 @@ export const DailyForecastComponent = ({ forecasts }) => {
     return (<div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100">
       <div className="flex items-center gap-2 mb-4">
         <Calendar className="w-4 h-4 text-gray-500"/>
-        <h3 className="text-sm font-semibold text-gray-700">5-Day Forecast</h3>
+        <h3 className="text-sm font-semibold text-gray-700">3-Day Forecast</h3>
       </div>
       
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">

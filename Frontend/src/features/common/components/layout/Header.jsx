@@ -19,6 +19,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import notificationApi from '@/features/common/services/notification.api';
+import { getNotificationType } from '@/features/common/utils/notificationFilters';
 
 const priorityColors = {
   critical: 'bg-red-500',
@@ -46,7 +47,7 @@ export function Header({ title, subtitle, onMenuClick }) {
     if (notificationFilter === 'all') {
       return notifications;
     }
-    return notifications.filter((n) => n.type === notificationFilter);
+    return notifications.filter((n) => getNotificationType(n) === notificationFilter);
   }, [notifications, notificationFilter]);
 
   const fetchNotifications = async () => {
@@ -219,7 +220,7 @@ export function Header({ title, subtitle, onMenuClick }) {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-lg">{typeIcons[notification.type] || '📋'}</span>
+                            <span className="text-lg">{typeIcons[getNotificationType(notification)] || '📋'}</span>
                             <span className="font-medium text-sm">{notification.title}</span>
                             <Badge
                               variant="outline"
