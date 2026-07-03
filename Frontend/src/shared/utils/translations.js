@@ -1,6 +1,16 @@
 export const translations = {
     en: {
         auth: {
+            login: 'Login',
+            register: 'Register',
+            logout: 'Logout',
+            profile: 'Profile',
+            selectDistrict: "Select District",
+            security: 'Security',
+            email: 'Email',
+            emailAddress: 'Email Address',
+            personalInfoDesc: "Personal Information",
+            manageProfile: 'Mange Profile',
             agreeTerms: 'I agree to the Terms and Conditions',
             alreadyHaveAccount: 'Already have an account?',
             backToLogin: 'Back to Login',

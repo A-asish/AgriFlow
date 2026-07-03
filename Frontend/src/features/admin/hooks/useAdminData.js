@@ -1,46 +1,88 @@
-import { useState, useCallback, useEffect } from 'react';
+// src/features/admin/hooks/useAdminData.js
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-export function useAdminData({ fetchFn, initialParams = {}, onSuccess, onError, immediate = true, }) {
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(immediate);
-    const [error, setError] = useState(null);
-    const [params, setParams] = useState(initialParams);
-    const fetch = useCallback(async (fetchParams) => {
-        try {
-            setLoading(true);
-            setError(null);
-            const activeParams = fetchParams !== undefined ? fetchParams : params;
-            const response = await fetchFn(activeParams);
-            setData(response.data);
-            onSuccess?.(response.data);
-            return response.data;
+
+export function useAdminData({ fetchFn, initialParams = {} }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [params, setParams] = useState(initialParams);
+  const isMounted = useRef(true);
+  const isFetching = useRef(false);
+
+  const fetchData = useCallback(async (fetchParams) => {
+    // Prevent multiple simultaneous fetches
+    if (isFetching.current) return;
+    
+    isFetching.current = true;
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const currentParams = fetchParams !== undefined ? fetchParams : params;
+      
+      // Clean params - remove empty values
+      const cleanParams = {};
+      Object.keys(currentParams).forEach(key => {
+        if (currentParams[key] !== '' && 
+            currentParams[key] !== null && 
+            currentParams[key] !== undefined && 
+            currentParams[key] !== 'all') {
+          cleanParams[key] = currentParams[key];
         }
-        catch (err) {
-            setError(err);
-            onError?.(err);
-            toast.error(err.response?.data?.message || 'Failed to fetch data');
-            throw err;
-        }
-        finally {
-            setLoading(false);
-        }
-    }, [fetchFn, params, onSuccess, onError]);
-    useEffect(() => {
-        if (immediate) {
-            fetch();
-        }
-    }, [immediate]); // Only run on mount if immediate is true, fetch depends on too many things
-    const updateParams = useCallback((newParams) => {
-        setParams((prev) => ({ ...prev, ...newParams }));
-    }, []);
-    const refresh = useCallback(() => fetch(), [fetch]);
-    return {
-        data,
-        loading,
-        error,
-        params,
-        setParams: updateParams,
-        refresh,
-        setData,
+      });
+      
+      const response = await fetchFn(cleanParams);
+      
+      if (isMounted.current) {
+        setData(response.data);
+      }
+    } catch (err) {
+      if (isMounted.current) {
+        console.error('Fetch error:', err);
+        setError(err);
+        toast.error(err.response?.data?.error || 'Failed to fetch data');
+      }
+    } finally {
+      if (isMounted.current) {
+        setLoading(false);
+      }
+      isFetching.current = false;
+    }
+  }, [fetchFn, params]);
+
+  // Only fetch on mount and when params change (with debounce)
+  useEffect(() => {
+    // Debounce to prevent rapid calls
+    const timeoutId = setTimeout(() => {
+      fetchData();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [params]); // Only depend on params, not fetchData
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
     };
+  }, []);
+
+  const updateParams = useCallback((newParams) => {
+    setParams(prev => ({ ...prev, ...newParams }));
+  }, []);
+
+  const refresh = useCallback(() => {
+    fetchData();
+  }, [fetchData]);
+
+  return {
+    data,
+    loading,
+    error,
+    params,
+    setParams: updateParams,
+    refresh,
+    setData,
+  };
 }

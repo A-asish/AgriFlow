@@ -21,7 +21,7 @@ import VerifyEmail from '@/features/auth/pages/VerifyEmail';
 import ProfilePage from '@/features/auth/pages/ProfilePage';
 // Admin Features
 import AdminDashboard from '@/features/admin/dashboard/pages/AdminDashboard';
-import AdminFarmers from '@/features/admin/farmers-management/pages/FarmersList';
+import AdminFarmers from '@/features/admin/users-management/pages/UserList';
 import AdminCrops from '@/features/admin/crops-management/pages/CropsList';
 import AdminLivestock from '@/features/admin/livestock-management/pages/LivestockList';
 import AdminFinance from '@/features/admin/finance-management/pages/FinanceList';
