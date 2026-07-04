@@ -1,113 +1,168 @@
+// src/contexts/NotificationContext.jsx
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import notificationApi from '../features/common/services/notification.api';
-import { useAuth } from './AuthContext';
+import notificationApi from '@/features/common/services/notification.api';
+import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 const NotificationContext = createContext();
 
-export const useNotifications = () => useContext(NotificationContext);
-
 export const NotificationProvider = ({ children }) => {
-  const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [isPolling, setIsPolling] = useState(true);
 
-  // Fetch notifications
   const fetchNotifications = useCallback(async () => {
-    if (!user) return;
-    
     setLoading(true);
     try {
-      const data = await notificationApi.getNotifications();
-      setNotifications(data.notifications || []);
-      setUnreadCount(data.unread_count || 0);
-    } catch (err) {
-      setError(err.message);
+      const response = await notificationApi.getNotifications();
+      
+      // Handle the response properly
+      let data = response;
+      
+      // If response has a data property, use it
+      if (response && response.data) {
+        data = response.data;
+      }
+      
+      // Extract notifications
+      const notifs = data.notifications || [];
+      const unread = data.unread_count ?? 0;
+      
+      // Ensure notifications is an array
+      const notificationsArray = Array.isArray(notifs) ? notifs : [];
+      
+      setNotifications(notificationsArray);
+      setUnreadCount(unread);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      // Don't show toast for network errors, just log them
+      if (error.response && error.response.status !== 403) {
+        toast.error('Failed to fetch notifications');
+      }
+      // Set empty state on error
+      setNotifications([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, []);
 
-  // Fetch unread count only (lighter)
-  const fetchUnreadCount = useCallback(async () => {
-    if (!user) return;
-    
-    try {
-      const data = await notificationApi.getUnreadCount();
-      setUnreadCount(data.unread_count || 0);
-    } catch (err) {
-      console.error('Failed to fetch unread count:', err);
-    }
-  }, [user]);
-
-  // Mark notification as read
-  const markAsRead = async (notificationId) => {
+  const markAsRead = useCallback(async (notificationId) => {
     try {
       await notificationApi.markAsRead(notificationId);
-      // Update local state
-      setNotifications(prev =>
-        prev.map(notif =>
-          notif.id === notificationId ? { ...notif, is_read: true } : notif
-        )
-      );
+      
+      setNotifications(prev => {
+        const updated = prev.map(n => {
+          if (n.id === notificationId) {
+            return { 
+              ...n, 
+              is_read: true, 
+              read_at: new Date().toISOString() 
+            };
+          }
+          return n;
+        });
+        return updated;
+      });
+      
       setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (err) {
-      console.error('Failed to mark as read:', err);
+      return true;
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      toast.error('Failed to mark notification as read');
+      await fetchNotifications();
+      throw error;
     }
-  };
+  }, [fetchNotifications]);
 
-  // Mark all as read
-  const markAllAsRead = async () => {
+  const markAllAsRead = useCallback(async () => {
     try {
-      await notificationApi.markAllFeedAsRead();
-      // Update local state
-      setNotifications(prev =>
-        prev.map(notif => ({ ...notif, is_read: true }))
+      await notificationApi.markAllAsRead();
+      
+      const now = new Date().toISOString();
+      setNotifications(prev => 
+        prev.map(n => ({ ...n, is_read: true, read_at: now }))
       );
       setUnreadCount(0);
-    } catch (err) {
-      console.error('Failed to mark all as read:', err);
+      
+      toast.success('All notifications marked as read');
+      return true;
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      toast.error('Failed to mark all notifications as read');
+      await fetchNotifications();
+      throw error;
     }
-  };
+  }, [fetchNotifications]);
 
-  // Delete notification
-  const deleteNotification = async (notificationId) => {
-    try {
-      await notificationApi.deleteNotification(notificationId);
-      setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
-      // Recalculate unread count
-      const newUnreadCount = notifications.filter(n => n.id !== notificationId && !n.is_read).length;
-      setUnreadCount(newUnreadCount);
-    } catch (err) {
-      console.error('Failed to delete notification:', err);
-    }
-  };
+  const addNotification = useCallback((notification) => {
+    setNotifications(prev => [notification, ...prev]);
+    setUnreadCount(prev => prev + 1);
+  }, []);
 
-  // Initial fetch
+  const { isAuthenticated } = useAuth();
+
+  // Initial fetch — only when the user is authenticated
   useEffect(() => {
-    if (user) {
+    if (isAuthenticated) {
       fetchNotifications();
-      // Poll for new notifications every 30 seconds
-      const interval = setInterval(fetchUnreadCount, 30000);
-      return () => clearInterval(interval);
     }
-  }, [user, fetchNotifications, fetchUnreadCount]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
+  // Poll for new notifications every 30 seconds (only when authenticated)
+  useEffect(() => {
+    if (!isPolling || !isAuthenticated) return;
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchNotifications();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, isPolling]);
+
+  // Listen for visibility change (only when authenticated)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchNotifications();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
+  const value = {
+    notifications,
+    unreadCount,
+    loading,
+    fetchNotifications,
+    markAsRead,
+    markAllAsRead,
+    addNotification,
+    setIsPolling,
+  };
 
   return (
-    <NotificationContext.Provider
-      value={{
-        notifications,
-        unreadCount,
-        loading,
-        error,
-        fetchNotifications,
-        markAsRead,
-        markAllAsRead,
-        deleteNotification,
-      }}
-    >
+    <NotificationContext.Provider value={value}>
       {children}
     </NotificationContext.Provider>
   );
+};
+
+export const useNotification = () => {
+  const context = useContext(NotificationContext);
+  if (!context) {
+    throw new Error('useNotification must be used within a NotificationProvider');
+  }
+  return context;
 };

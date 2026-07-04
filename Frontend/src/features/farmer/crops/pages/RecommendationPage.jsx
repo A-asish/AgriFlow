@@ -120,7 +120,10 @@ const RecommendationPage = () => {
     };
 
     const handleGetRecommendations = async () => {
-        const requiredFields = ['region', 'season', 'water_source', 'soil_type', 'temperature', 'frost_risk', 'drought_risk'];
+        const requiredFields = [
+            'region', 'season', 'temperature', 'drought_risk', 'frost_risk',
+            'water_source', 'soil_type', 'labor_availability', 'market_distance', 'farming_goal'
+        ];
         
         const missingFields = requiredFields.filter(field => {
             const value = soilData[field];

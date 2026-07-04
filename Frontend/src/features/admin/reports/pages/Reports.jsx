@@ -1,13 +1,19 @@
 // src/features/admin/reports/pages/Reports.jsx
 import React, { useState } from 'react';
-import { cn } from "@/lib/utils";
 import AdminLayout from '../../components/AdminLayout';
-import { FileText, Download, Users, Wallet, Sprout, Beef, MoreVertical, Clock, Loader2, Trash2 } from 'lucide-react';
-import { Card } from '@/shared/components/ui/card';
+import { RefreshCw, Loader2, Filter, X, Download, FileText, Users, Wallet, Sprout, Beef, Calendar, Clock } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
-import { Checkbox } from '@/shared/components/ui/checkbox';
+import { Card } from '@/shared/components/ui/card';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
+import { toast } from 'sonner';
+import { cn } from "@/lib/utils";
+
+import { useReports } from '../hooks/useReports';
+import ReportHistoryTable from '../components/ReportHistoryTable';
+import ReportPagination from '../components/ReportPagination';
+import BulkActions from '../components/BulkActions';
+
 import {
   Select,
   SelectContent,
@@ -15,13 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from '@/shared/components/ui/dropdown-menu';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,16 +33,26 @@ import {
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog';
 import adminService from '../../services/admin.api';
-import { useAdminData } from '../../hooks/useAdminData';
-import DataTable from '../../components/DataTable';
-import { formatDate } from '../../utils/helpers';
-import { toast } from 'sonner';
 
 const Reports = () => {
-  const { data: reportsData, loading, refresh } = useAdminData({
-    fetchFn: () => adminService.listReports()
-  });
-  
+  const {
+    reports,
+    loading,
+    selectedReports,
+    pagination,
+    filters,
+    refresh,
+    handlePageChange,
+    handlePerPageChange,
+    handleFilterChange,
+    applyFilters,
+    clearFilters,
+    toggleSelectAll,
+    toggleSelectOne,
+    clearSelection,
+  } = useReports();
+
+  const [generating, setGenerating] = useState(false);
   const [customReport, setCustomReport] = useState({
     format: 'csv',
     include_details: true,
@@ -54,15 +64,15 @@ const Reports = () => {
     include_finance: false,
   });
   
-  const [generating, setGenerating] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [reportToDelete, setReportToDelete] = useState(null);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   const reportTemplates = [
-    { id: 'farmer', title: 'Farmer Demographic Registry', description: 'Complete list of registered farmers with contact and farm specifications.', icon: Users, color: 'text-blue-500 bg-blue-50', filename: 'farmers_report' },
-    { id: 'financial', title: 'Ecosystem Financial Summary', description: 'System-wide income and expense records with categorical breakdown.', icon: Wallet, color: 'text-emerald-500 bg-emerald-50', filename: 'financial_report' },
-    { id: 'crop', title: 'Platform Cultivation Metrics', description: 'Monitoring of current growth stages and expected yield across all fields.', icon: Sprout, color: 'text-amber-500 bg-amber-50', filename: 'crops_report' },
-    { id: 'livestock', title: 'Livestock Health & Stats', description: 'Animal inventory monitoring, health states, and breeding cycles.', icon: Beef, color: 'text-purple-500 bg-purple-50', filename: 'livestock_report' },
+    { id: 'farmer', title: 'Farmer Registry', description: 'Complete list of registered farmers', icon: Users, color: 'text-blue-500 bg-blue-50', filename: 'farmers_report' },
+    { id: 'financial', title: 'Financial Summary', description: 'Income and expense records', icon: Wallet, color: 'text-emerald-500 bg-emerald-50', filename: 'financial_report' },
+    { id: 'crop', title: 'Cultivation Metrics', description: 'Growth stages and yield tracking', icon: Sprout, color: 'text-amber-500 bg-amber-50', filename: 'crops_report' },
+    { id: 'livestock', title: 'Livestock Stats', description: 'Animal inventory and health records', icon: Beef, color: 'text-purple-500 bg-purple-50', filename: 'livestock_report' },
   ];
 
   const getFileExtension = (format) => {
@@ -73,35 +83,25 @@ const Reports = () => {
     }
   };
 
-  const handleGenerateReport = async (reportType, format, filename) => {
+  const handleGenerateReport = async (reportType, format, filename, customStart, customEnd) => {
     setGenerating(true);
+    const startDate = customStart || customReport.date_range_start;
+    const endDate = customEnd || customReport.date_range_end;
     const loadingToast = toast.loading(`Generating ${reportType} report...`);
     
     try {
       const response = await adminService.generateReport({
         report_type: reportType,
         format: format,
-        date_range_start: customReport.date_range_start,
-        date_range_end: customReport.date_range_end,
+        date_range_start: startDate,
+        date_range_end: endDate,
         include_details: customReport.include_details,
       });
       
-      // Debug logs
-      console.log('========== REPORT GENERATION DEBUG ==========');
-      console.log('Full response:', response);
-      console.log('Response data type:', typeof response.data);
-      console.log('Is response.data a Blob?', response.data instanceof Blob);
-      console.log('Response headers:', response.headers);
-      console.log('Response status:', response.status);
-      console.log('=============================================');
-      
       toast.dismiss(loadingToast);
       
-      // Check if response is a blob (file)
       if (response.data instanceof Blob) {
-        // Check if it's an error response (sometimes errors come as JSON in blob)
         if (response.data.type === 'application/json') {
-          // Try to read as JSON to check for error
           const text = await response.data.text();
           try {
             const errorData = JSON.parse(text);
@@ -109,16 +109,12 @@ const Reports = () => {
               toast.error(errorData.error);
               return;
             }
-          } catch (e) {
-            // Not JSON, proceed with download
-          }
+          } catch (e) {}
         }
         
-        // Get file extension
         const fileExt = getFileExtension(format);
-        const downloadFilename = `${filename}_${customReport.date_range_start}_to_${customReport.date_range_end}.${fileExt}`;
+        const downloadFilename = `${filename}_${startDate}_to_${endDate}.${fileExt}`;
         
-        // Create download link
         const url = window.URL.createObjectURL(response.data);
         const link = document.createElement('a');
         link.href = url;
@@ -129,22 +125,17 @@ const Reports = () => {
         window.URL.revokeObjectURL(url);
         
         toast.success(`${reportType.charAt(0).toUpperCase() + reportType.slice(1)} report downloaded!`);
-        refresh();
-      } else if (response.data && typeof response.data === 'object' && response.data.error) {
-        // Handle JSON error response
+        setTimeout(() => refresh(), 500);
+      } else if (response.data?.error) {
         toast.error(response.data.error);
       } else {
-        console.error('Unexpected response format:', response.data);
         toast.error('Unexpected response format');
       }
-      
     } catch (error) {
       console.error('Error generating report:', error);
-      console.error('Error response:', error.response);
       toast.dismiss(loadingToast);
       
-      // Check if error response has a blob
-      if (error.response && error.response.data instanceof Blob) {
+      if (error.response?.data instanceof Blob) {
         const text = await error.response.data.text();
         try {
           const errorData = JSON.parse(text);
@@ -202,7 +193,7 @@ const Reports = () => {
       
       toast.dismiss(loadingToast);
       toast.success(`${selectedModules.length} report(s) downloaded!`);
-      refresh();
+      setTimeout(() => refresh(), 500);
     } catch (error) {
       console.error('Error generating custom report:', error);
       toast.dismiss(loadingToast);
@@ -214,7 +205,18 @@ const Reports = () => {
 
   const handleDownload = (report) => {
     if (report.file) {
-      window.open(report.file, '_blank');
+      const apiBase = import.meta.env.VITE_API_BASE_URL || window.location.origin + '/api/';
+      const host = apiBase.endsWith('/api/') ? apiBase.slice(0, -5) : apiBase;
+      const url = `${host}${report.file.startsWith('/') ? '' : '/'}${report.file}`;
+      window.open(url, '_blank');
+    } else if (report.report_type && report.format && report.filters) {
+      handleGenerateReport(
+        report.report_type, 
+        report.format, 
+        `${report.report_type}_report`, 
+        report.filters.start_date, 
+        report.filters.end_date
+      );
     } else {
       toast.info('No file available for this report');
     }
@@ -226,214 +228,394 @@ const Reports = () => {
     try {
       await adminService.deleteReport(reportToDelete.id);
       toast.success('Report deleted successfully');
-      refresh();
       setShowDeleteDialog(false);
       setReportToDelete(null);
+      setTimeout(() => refresh(), 300);
     } catch (error) {
       console.error('Error deleting report:', error);
       toast.error('Failed to delete report');
     }
   };
 
-  const columns = [
-    {
-      header: 'Report Name',
-      accessor: (r) => (
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
-            <FileText className="w-4 h-4 text-slate-500"/>
-          </div>
-          <div>
-            <p className="font-bold text-slate-700 text-sm">{r.title || r.report_type}</p>
-            <p className="text-[10px] text-slate-400">{r.report_type}</p>
-          </div>
-        </div>
-      ),
-    },
-    {
-      header: 'Created',
-      accessor: (r) => <span className="text-xs text-slate-500">{formatDate(r.generated_at)}</span>,
-    },
-    {
-      header: 'Format',
-      accessor: (r) => <span className="text-xs font-bold text-slate-400 uppercase">{r.format}</span>,
-    },
-    {
-      header: 'By',
-      accessor: (r) => <span className="text-xs text-slate-500">{r.generated_by_name || 'System'}</span>,
-    },
-    {
-      header: 'Downloads',
-      accessor: (r) => <span className="text-xs font-bold text-slate-500">{r.download_count || 0}</span>,
-    },
-    {
-      header: '',
-      className: 'text-right',
-      accessor: (r) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreVertical className="w-4 h-4 text-slate-400"/>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuItem onClick={() => handleDownload(r)} className="gap-2">
-              <Download className="w-4 h-4"/> Download
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => { setReportToDelete(r); setShowDeleteDialog(true); }} className="gap-2 text-red-600">
-              <Trash2 className="w-4 h-4"/> Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
-    },
-  ];
+  const handleBulkDelete = async () => {
+    if (selectedReports.length === 0) {
+      toast.warning('No reports selected');
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete ${selectedReports.length} report(s)? This action cannot be undone.`
+    );
+    
+    if (!confirmDelete) return;
+
+    setBulkActionLoading(true);
+    const loadingToast = toast.loading(`Deleting ${selectedReports.length} report(s)...`);
+    
+    try {
+      await Promise.all(selectedReports.map(id => adminService.deleteReport(id)));
+      toast.dismiss(loadingToast);
+      toast.success(`${selectedReports.length} report(s) deleted successfully`);
+      clearSelection();
+      setTimeout(() => refresh(), 300);
+    } catch (error) {
+      console.error('Error deleting reports:', error);
+      toast.dismiss(loadingToast);
+      toast.error('Failed to delete some reports');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkDownload = async () => {
+    if (selectedReports.length === 0) {
+      toast.warning('No reports selected');
+      return;
+    }
+
+    setBulkActionLoading(true);
+    const loadingToast = toast.loading(`Downloading ${selectedReports.length} report(s)...`);
+    
+    try {
+      const selectedReportsData = reports.filter(r => selectedReports.includes(r.id));
+      
+      for (const report of selectedReportsData) {
+        if (report.file) {
+          const apiBase = import.meta.env.VITE_API_BASE_URL || window.location.origin + '/api/';
+          const host = apiBase.endsWith('/api/') ? apiBase.slice(0, -5) : apiBase;
+          const url = `${host}${report.file.startsWith('/') ? '' : '/'}${report.file}`;
+          window.open(url, '_blank');
+        }
+      }
+      
+      toast.dismiss(loadingToast);
+      toast.success(`${selectedReports.length} report(s) downloaded`);
+      clearSelection();
+    } catch (error) {
+      console.error('Error downloading reports:', error);
+      toast.dismiss(loadingToast);
+      toast.error('Failed to download some reports');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const hasActiveFilters = Object.values(filters).some(v => v && v !== '');
 
   return (
     <AdminLayout>
-      <div className="space-y-6 p-6">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">Reports</h1>
-          <p className="text-xs text-slate-500">Generate and download system reports</p>
+      <div className="space-y-6 p-6 bg-linear-to-b from-slate-50 to-white min-h-screen">
+        {/* Header - Elegant and Clean */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Reports</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Generate, manage, and download system reports</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refresh}
+              disabled={loading}
+              className="gap-2 border-slate-200 hover:border-slate-300"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Custom Report Builder */}
-          <Card className="p-5">
-            <h3 className="text-base font-bold mb-4">Custom Report</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <Label className="text-xs">Format</Label>
-                <Select value={customReport.format} onValueChange={(v) => setCustomReport(prev => ({ ...prev, format: v }))}>
-                  <SelectTrigger className="h-9 text-sm mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="csv">CSV</SelectItem>
-                    <SelectItem value="excel">Excel</SelectItem>
-                    <SelectItem value="pdf">PDF</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs">Start Date</Label>
-                  <Input 
-                    type="date" 
-                    value={customReport.date_range_start} 
-                    onChange={(e) => setCustomReport(prev => ({ ...prev, date_range_start: e.target.value }))} 
-                    className="h-9 text-sm mt-1" 
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">End Date</Label>
-                  <Input 
-                    type="date" 
-                    value={customReport.date_range_end} 
-                    onChange={(e) => setCustomReport(prev => ({ ...prev, date_range_end: e.target.value }))} 
-                    className="h-9 text-sm mt-1" 
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-xs mb-2 block">Modules</Label>
-                <div className="space-y-2">
-                  {[
-                    { id: 'include_farmers', label: 'Farmers', icon: Users },
-                    { id: 'include_crops', label: 'Crops', icon: Sprout },
-                    { id: 'include_livestock', label: 'Livestock', icon: Beef },
-                    { id: 'include_finance', label: 'Finance', icon: Wallet },
-                  ].map((item) => (
-                    <div key={item.id} className="flex items-center gap-2 p-2 rounded hover:bg-slate-50">
-                      <Checkbox 
-                        id={item.id} 
-                        checked={customReport[item.id]} 
-                        onCheckedChange={(checked) => setCustomReport(prev => ({ ...prev, [item.id]: checked }))} 
-                      />
-                      <label htmlFor={item.id} className="text-sm flex items-center gap-2 cursor-pointer">
-                        <item.icon className="w-4 h-4 text-slate-400" />
-                        {item.label}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <Checkbox 
-                  id="include_details" 
-                  checked={customReport.include_details} 
-                  onCheckedChange={(checked) => setCustomReport(prev => ({ ...prev, include_details: checked }))} 
-                />
-                <label htmlFor="include_details" className="text-sm cursor-pointer">Include details</label>
-              </div>
-
-              <Button 
-                onClick={handleCustomReport} 
-                disabled={generating} 
-                className="w-full bg-emerald-600 hover:bg-emerald-700"
-              >
-                {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : <Download className="w-4 h-4 mr-2"/>}
-                Generate Report
-              </Button>
-            </div>
-          </Card>
-
-          {/* Templates & History */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Templates */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {reportTemplates.map((tpl) => (
-                <Card key={tpl.id} className="p-4 hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-start">
-                    <div className={cn("p-2 rounded-lg", tpl.color)}>
-                      <tpl.icon className="w-5 h-5"/>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => handleGenerateReport(tpl.id, customReport.format, tpl.filename)} 
-                      disabled={generating} 
-                      className="text-emerald-600"
-                    >
-                      {generating ? <Loader2 className="w-3 h-3 animate-spin"/> : <Download className="w-3 h-3 mr-1"/>}
-                      Generate
-                    </Button>
+        {/* Quick Report Templates - Clean Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {reportTemplates.map((tpl) => (
+            <Card key={tpl.id} className="p-4 hover:shadow-md transition-all duration-200 border-slate-200/60 hover:border-slate-300 group">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={cn("p-2 rounded-lg", tpl.color)}>
+                    <tpl.icon className="w-4 h-4" />
                   </div>
-                  <h4 className="font-bold mt-3">{tpl.title}</h4>
-                  <p className="text-xs text-slate-500 mt-1">{tpl.description}</p>
-                </Card>
-              ))}
-            </div>
-
-            {/* Report History */}
-            <Card className="overflow-hidden">
-              <div className="p-4 border-b">
-                <h3 className="font-bold">Generated Reports</h3>
+                  <div>
+                    <h4 className="font-semibold text-sm text-slate-800">{tpl.title}</h4>
+                    <p className="text-[10px] text-slate-400 leading-tight">{tpl.description}</p>
+                  </div>
+                </div>
               </div>
-              <DataTable 
-                columns={columns} 
-                data={reportsData?.reports || []} 
-                loading={loading} 
-                emptyMessage="No reports generated yet" 
+              <div className="flex items-center gap-1 mt-3 pt-3 border-t border-slate-100">
+                <span className="text-[9px] font-medium uppercase text-slate-400 mr-auto">Export</span>
+                {['csv', 'excel', 'pdf'].map((fmt) => (
+                  <Button
+                    key={fmt}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleGenerateReport(tpl.id, fmt, tpl.filename)}
+                    disabled={generating}
+                    className="h-7 text-[10px] font-medium px-2.5 rounded-md text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                  >
+                    {fmt.toUpperCase()}
+                  </Button>
+                ))}
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        {/* Main Content Area - Seamless Integration */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Custom Report Builder - Left Sidebar */}
+          <div className="lg:col-span-1">
+            <Card className="p-5 border-slate-200/60 shadow-sm sticky top-6">
+              <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-emerald-600" />
+                Custom Report
+              </h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-xs font-medium text-slate-600">Format</Label>
+                  <Select 
+                    value={customReport.format} 
+                    onValueChange={(v) => setCustomReport(prev => ({ ...prev, format: v }))}
+                  >
+                    <SelectTrigger className="h-9 text-sm mt-1 border-slate-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="csv">CSV</SelectItem>
+                      <SelectItem value="excel">Excel</SelectItem>
+                      <SelectItem value="pdf">PDF</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs font-medium text-slate-600">From</Label>
+                    <Input 
+                      type="date" 
+                      value={customReport.date_range_start} 
+                      onChange={(e) => setCustomReport(prev => ({ ...prev, date_range_start: e.target.value }))} 
+                      className="h-9 text-sm mt-1 border-slate-200" 
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium text-slate-600">To</Label>
+                    <Input 
+                      type="date" 
+                      value={customReport.date_range_end} 
+                      onChange={(e) => setCustomReport(prev => ({ ...prev, date_range_end: e.target.value }))} 
+                      className="h-9 text-sm mt-1 border-slate-200" 
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Modules</Label>
+                  <div className="space-y-1.5">
+                    {[
+                      { id: 'include_farmers', label: 'Farmers', icon: Users },
+                      { id: 'include_crops', label: 'Crops', icon: Sprout },
+                      { id: 'include_livestock', label: 'Livestock', icon: Beef },
+                      { id: 'include_finance', label: 'Finance', icon: Wallet },
+                    ].map((item) => (
+                      <div key={item.id} className="flex items-center gap-2 p-1.5 rounded-md hover:bg-slate-50 transition-colors">
+                        <input
+                          type="checkbox"
+                          id={item.id}
+                          checked={customReport[item.id]}
+                          onChange={(e) => setCustomReport(prev => ({ ...prev, [item.id]: e.target.checked }))}
+                          className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                        />
+                        <label htmlFor={item.id} className="text-sm flex items-center gap-2 cursor-pointer text-slate-700">
+                          <item.icon className="w-3.5 h-3.5 text-slate-400" />
+                          {item.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="include_details"
+                    checked={customReport.include_details}
+                    onChange={(e) => setCustomReport(prev => ({ ...prev, include_details: e.target.checked }))}
+                    className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                  />
+                  <label htmlFor="include_details" className="text-sm cursor-pointer text-slate-700">Include details</label>
+                </div>
+
+                <Button 
+                  onClick={handleCustomReport} 
+                  disabled={generating} 
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                >
+                  {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : <Download className="w-4 h-4 mr-2"/>}
+                  Generate Report
+                </Button>
+              </div>
+            </Card>
+          </div>
+
+          {/* Reports List with Integrated Filters - Right Side */}
+          <div className="lg:col-span-3">
+            <Card className="overflow-hidden border-slate-200/60 shadow-sm">
+              {/* Integrated Header with Filters */}
+              <div className="border-b border-slate-200/60 bg-slate-50/50">
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-4">
+                      <h3 className="font-bold text-slate-800">Generated Reports</h3>
+                      <span className="text-sm text-slate-500 bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
+                        {pagination.totalItems} {pagination.totalItems !== 1 ? 'reports' : 'report'}
+                      </span>
+                    </div>
+                    <BulkActions
+                      selectedCount={selectedReports.length}
+                      onSelectAll={() => toggleSelectAll(selectedReports.length !== reports.length)}
+                      onClearSelection={clearSelection}
+                      allSelected={selectedReports.length === reports.length && reports.length > 0}
+                      onBulkDelete={handleBulkDelete}
+                      onBulkDownload={handleBulkDownload}
+                      loading={bulkActionLoading}
+                    />
+                  </div>
+
+                  {/* Integrated Filters - Clean and Compact */}
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="flex items-center gap-2">
+                      <Filter className="w-4 h-4 text-slate-400" />
+                      <span className="text-xs font-medium text-slate-600">Filters</span>
+                      {hasActiveFilters && (
+                        <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                          Active
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 min-w-35">
+                      <Select
+                        value={filters.report_type || 'all'}
+                        onValueChange={(v) => handleFilterChange('report_type', v === 'all' ? '' : v)}
+                      >
+                        <SelectTrigger className="h-8 text-xs border-slate-200 bg-white">
+                          <SelectValue placeholder="All Types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Types</SelectItem>
+                          <SelectItem value="farmer">Farmer</SelectItem>
+                          <SelectItem value="financial">Financial</SelectItem>
+                          <SelectItem value="crop">Crop</SelectItem>
+                          <SelectItem value="livestock">Livestock</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="min-w-30">
+                      <Select
+                        value={filters.format || 'all'}
+                        onValueChange={(v) => handleFilterChange('format', v === 'all' ? '' : v)}
+                      >
+                        <SelectTrigger className="h-8 text-xs border-slate-200 bg-white">
+                          <SelectValue placeholder="All Formats" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Formats</SelectItem>
+                          <SelectItem value="csv">CSV</SelectItem>
+                          <SelectItem value="excel">Excel</SelectItem>
+                          <SelectItem value="pdf">PDF</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="min-w-32.5">
+                      <div className="relative">
+                        <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                        <Input
+                          type="date"
+                          value={filters.start_date || ''}
+                          onChange={(e) => handleFilterChange('start_date', e.target.value)}
+                          className="h-8 text-xs pl-7 border-slate-200 bg-white"
+                          placeholder="From"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="min-w-32.5">
+                      <div className="relative">
+                        <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                        <Input
+                          type="date"
+                          value={filters.end_date || ''}
+                          onChange={(e) => handleFilterChange('end_date', e.target.value)}
+                          className="h-8 text-xs pl-7 border-slate-200 bg-white"
+                          placeholder="To"
+                        />
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      size="sm" 
+                      onClick={applyFilters} 
+                      className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium"
+                    >
+                      Apply
+                    </Button>
+                    
+                    {hasActiveFilters && (
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={clearFilters}
+                        className="h-8 text-xs text-red-500 hover:text-red-600 hover:bg-red-50"
+                      >
+                        <X className="w-3 h-3 mr-1" />
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Report Table */}
+              <ReportHistoryTable
+                reports={reports}
+                loading={loading}
+                selectedReports={selectedReports}
+                onToggleSelect={toggleSelectOne}
+                onSelectAll={(checked) => toggleSelectAll(checked)}
+                onDownload={handleDownload}
+                onDelete={(report) => {
+                  setReportToDelete(report);
+                  setShowDeleteDialog(true);
+                }}
+              />
+              
+              {/* Pagination */}
+              <ReportPagination
+                pagination={pagination}
+                onPageChange={handlePageChange}
+                onPerPageChange={handlePerPageChange}
               />
             </Card>
           </div>
         </div>
 
+        {/* Delete Dialog */}
         <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Report?</AlertDialogTitle>
-              <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{reportToDelete?.title || reportToDelete?.report_type}"? 
+                This action cannot be undone.
+              </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteReport} className="bg-red-600">Delete</AlertDialogAction>
+              <AlertDialogAction onClick={handleDeleteReport} className="bg-red-600 hover:bg-red-700">
+                Delete
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

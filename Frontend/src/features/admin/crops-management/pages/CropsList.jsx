@@ -47,6 +47,7 @@ import CropDetailModal from '../components/CropDetailModal';
 import CropRegisterModal from '../components/CropRegisterModal';
 import BulkActionBar from '../components/BulkActionBar';
 import BulkConfirmDialog from '../components/BulkConfirmDialog';
+import CropManagementTabs from '../components/CropManagementTabs';
 import { toast } from 'sonner';
 
 // Nepali Districts
@@ -548,6 +549,9 @@ const CropsList = () => {
             </Button>
           </div>
         </div>
+        
+        {/* Navigation Tabs */}
+        <CropManagementTabs activeTab="cultivations" />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">

@@ -1,11 +1,13 @@
 import { CheckCircle2, Clock, AlertCircle, TrendingUp, TrendingDown, Wheat, Beef, Sprout, Syringe, Pill, Flower2, Milestone, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { financeService } from '@/features/farmer/finance/services/finance.api';
 import { cropsService } from '@/features/farmer/crops/services/crops.api';
 import { Button } from '@/shared/components/ui/button';
 export function RecentActivity() {
     const { t } = useLanguage();
+    const navigate = useNavigate();
     const [allActivities, setAllActivities] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
@@ -239,7 +241,27 @@ export function RecentActivity() {
       </div>
 
       <div className="flex-1 space-y-3 sm:space-y-4">
-        {paginatedActivities.length > 0 ? (paginatedActivities.map((activity) => (<div key={activity.id} className="flex items-start gap-3 sm:gap-4 group">
+        {paginatedActivities.length > 0 ? (paginatedActivities.map((activity) => (
+          <div
+            key={activity.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              if (activity.type === 'crop') navigate('/crops');
+              else if (activity.type === 'livestock') navigate('/livestock');
+              else if (activity.type === 'health' || activity.type === 'vaccination') navigate('/livestock');
+              else navigate('/finance');
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                if (activity.type === 'crop') navigate('/crops');
+                else if (activity.type === 'livestock') navigate('/livestock');
+                else if (activity.type === 'health' || activity.type === 'vaccination') navigate('/livestock');
+                else navigate('/finance');
+              }
+            }}
+            className="flex items-start gap-3 sm:gap-4 group cursor-pointer rounded-xl p-2 -mx-2 hover:bg-gray-50 transition-colors"
+          >
               <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-colors border shrink-0
                 ${activity.type === 'crop' ? 'bg-green-50 border-green-100 group-hover:bg-green-100' : ''}
                 ${activity.type === 'livestock' ? 'bg-amber-50 border-amber-100 group-hover:bg-amber-100' : ''}

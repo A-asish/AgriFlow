@@ -29,10 +29,17 @@ import AdminAnalytics from "@/features/admin/pages/Analytics";
 import AdminReports from '@/features/admin/reports/pages/Reports';
 import AdminNotifications from "@/features/admin/pages/Notifications";
 import AdminSettingsPage from "@/features/admin/pages/Settings";
+import CropConfigList from '@/features/admin/rules-management/pages/CropConfigList';
+import CropConfigForm from '@/features/admin/rules-management/pages/CropConfigForm';
+import KnowledgeBaseList from '@/features/admin/crops-management/pages/KnowledgeBaseList';
+import KnowledgeBaseForm from '@/features/admin/crops-management/pages/KnowledgeBaseForm';
 import WeatherPage from '@/features/farmer/weather/pages/WeatherPage';
 import CalendarPage from '@/features/farmer/calendar/pages/CalendarPage';
 import SettingsPage from "@/features/settings/pages/SettingsPage";
 import RecommendationPage from '@/features/farmer/crops/pages/RecommendationPage';
+import CropActivityRules from '@/features/admin/crops-management/pages/CropActivityRules';
+
+
 function ProtectedRoute({ children }) {
     const { isAuthenticated, loading } = useAuth();
     if (loading)
@@ -88,6 +95,18 @@ const AppRoutes = () => (<Routes>
     <Route path="/admin/reports" element={<AdminProtectedRoute><AdminReports /></AdminProtectedRoute>}/>
     <Route path="/admin/notifications" element={<AdminProtectedRoute><AdminNotifications /></AdminProtectedRoute>}/>
     <Route path="/admin/settings" element={<AdminProtectedRoute><AdminSettingsPage /></AdminProtectedRoute>}/>
+    
+    {/* Crop Lifecycle Configs */}
+    <Route path="/admin/crop-configs" element={<AdminProtectedRoute><CropConfigList /></AdminProtectedRoute>}/>
+    <Route path="/admin/crop-configs/new" element={<AdminProtectedRoute><CropConfigForm /></AdminProtectedRoute>}/>
+    <Route path="/admin/crop-configs/:id" element={<AdminProtectedRoute><CropConfigForm /></AdminProtectedRoute>}/>
+    <Route path="/admin/crop-configs/:configId/rules" element={<AdminProtectedRoute><CropActivityRules /></AdminProtectedRoute>}/>
+
+
+    {/* Knowledge Base */}
+    <Route path="/admin/knowledge-base" element={<AdminProtectedRoute><KnowledgeBaseList /></AdminProtectedRoute>}/>
+    <Route path="/admin/knowledge-base/new" element={<AdminProtectedRoute><KnowledgeBaseForm /></AdminProtectedRoute>}/>
+    <Route path="/admin/knowledge-base/:id" element={<AdminProtectedRoute><KnowledgeBaseForm /></AdminProtectedRoute>}/>
     
     <Route path="/crops" element={<ProtectedRoute><CropsPage /></ProtectedRoute>}/>
     <Route path="/crops/:id" element={<ProtectedRoute><CropDetailPage /></ProtectedRoute>}/>

@@ -62,9 +62,9 @@ export const cropsService = {
     getRecommendationDetail: (id) => api.get(`/crops/recommend/history/${id}/`),
     deleteRecommendationDetail: (id) => api.delete(`/crops/recommend/history/${id}/`),
     
-    listKnowledgeBase: (params) => api.get('/crops/api/knowledge-base/', { params }),
-    getKnowledgeBaseById: (id) => api.get(`/crops/api/knowledge-base/${id}/`),
-    searchKnowledgeBase: (query) => api.get('/crops/api/knowledge-base/', { params: { search: query } }),
+    listKnowledgeBase: (params) => api.get('/crops/knowledge-base/', { params }),
+    getKnowledgeBaseById: (id) => api.get(`/crops/knowledge-base/${id}/`),
+    searchKnowledgeBase: (query) => api.get('/crops/knowledge-base/', { params: { search: query } }),
 };
 
 export default cropsService;

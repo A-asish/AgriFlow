@@ -1,8 +1,10 @@
 // features/dashboard/components/LivestockStatus.tsx
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Beef, Heart, Activity, Baby } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Beef, Heart, Activity, Baby, ArrowRight } from 'lucide-react';
 export function LivestockStatus({ animals, loading }) {
     const { t } = useLanguage();
+    const navigate = useNavigate();
     // Calculate statistics
     const totalAnimals = animals.length;
     const activeAnimals = animals.filter((a) => a.status === 'active').length;
@@ -30,9 +32,17 @@ export function LivestockStatus({ animals, loading }) {
       </div>);
     }
     return (<div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <Beef className="w-5 h-5 text-amber-600"/>
-        <h3 className="font-semibold text-base sm:text-lg text-gray-800">{t('dashboard.livestockStatus')}</h3>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Beef className="w-5 h-5 text-amber-600"/>
+          <h3 className="font-semibold text-base sm:text-lg text-gray-800">{t('dashboard.livestockStatus')}</h3>
+        </div>
+        <button
+          onClick={() => navigate('/livestock')}
+          className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 font-medium transition-colors"
+        >
+          {t('common.viewAll')} <ArrowRight className="w-3 h-3" />
+        </button>
       </div>
 
       {/* Summary Stats */}
@@ -57,7 +67,14 @@ export function LivestockStatus({ animals, loading }) {
 
       {/* Animal List */}
       <div className="space-y-3 max-h-80 overflow-y-auto">
-        {animals.length > 0 ? (animals.slice(0, 5).map((animal) => (<div key={animal.id} className="flex items-center justify-between p-3 rounded-lg bg-amber-50/50 border border-amber-100">
+        {animals.length > 0 ? (animals.slice(0, 5).map((animal) => (<div
+              key={animal.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(`/livestock/${animal.id}`)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/livestock/${animal.id}`); }}
+              className="flex items-center justify-between p-3 rounded-lg bg-amber-50/50 border border-amber-100 cursor-pointer hover:bg-amber-100/60 hover:border-amber-200 hover:shadow-sm transition-all duration-200"
+            >
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 {getHealthIcon(animal.is_pregnant ? 'pregnant' : animal.status)}
                 <div className="min-w-0 flex-1">
@@ -88,7 +105,10 @@ export function LivestockStatus({ animals, loading }) {
               </div>
             </div>))) : (<p className="text-sm text-gray-500 text-center py-4">{t('dashboard.noAnimals')}</p>)}
         
-        {animals.length > 5 && (<button className="w-full text-center text-xs text-amber-600 hover:text-amber-700 font-medium py-2">
+        {animals.length > 5 && (<button
+            onClick={() => navigate('/livestock')}
+            className="w-full text-center text-xs text-amber-600 hover:text-amber-700 font-medium py-2 mt-1 rounded-lg hover:bg-amber-50 transition-colors"
+          >
             + {animals.length - 5} more animals
           </button>)}
       </div>

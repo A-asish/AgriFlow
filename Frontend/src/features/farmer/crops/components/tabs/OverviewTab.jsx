@@ -33,8 +33,8 @@ function RelatedAlerts({ itemId, source }) {
                 const rawAlerts = source === 'crop' ? response.crop : response.livestock;
                 const normalized = (rawAlerts || []).map(a => normalizeReminder(a, source));
                 const filtered = normalized.filter(a => {
-                    const alertItemId = source === 'crop' ? a.cropId : a.animalId;
-                    return String(alertItemId) === String(itemId);
+                    // normalizeReminder stores the linked record ID in `sourceId`
+                    return String(a.sourceId) === String(itemId);
                 });
                 setAlerts(filtered);
                 setFilteredAlerts(filtered);

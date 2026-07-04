@@ -18,6 +18,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/shared/components/ui/button';
 import { Badge } from '@/shared/components/ui/badge';
+
 import {
     Select,
     SelectContent,
@@ -60,7 +61,7 @@ export function DashboardAlerts() {
     const [statusFilter, setStatusFilter] = useState('active');
     const [priorityFilter, setPriorityFilter] = useState('all');
     const [dueDateFilter, setDueDateFilter] = useState('all');
-    const [sortOrder, setSortOrder] = useState('priority');
+    const [sortOrder, setSortOrder] = useState('date_newest'); // Changed from 'priority' to 'date_newest'
     const [itemsPerPage, setItemsPerPage] = useState(5);
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -201,8 +202,25 @@ export function DashboardAlerts() {
     };
 
     const handleAlertClick = (alert) => {
+        // 1. Use actionUrl from API if present
         if (alert.actionUrl) {
             navigate(alert.actionUrl);
+            return;
+        }
+        // 2. Build URL from sourceId if available
+        if (alert.sourceId) {
+            if (alert.source === 'crop') {
+                navigate(`/crops/${alert.sourceId}`);
+            } else if (alert.source === 'livestock') {
+                navigate(`/livestock/${alert.sourceId}`);
+            }
+            return;
+        }
+        // 3. Fallback to the list page for that source
+        if (alert.source === 'crop') {
+            navigate('/crops');
+        } else if (alert.source === 'livestock') {
+            navigate('/livestock');
         }
     };
 

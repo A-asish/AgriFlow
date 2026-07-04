@@ -10,16 +10,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/sha
 import { BookOpen, ArrowLeft, Save, Sparkles, Sprout, Info, Thermometer, Droplet, Layers, Beaker } from 'lucide-react';
 import adminService from '../../services/admin.api';
 import { toast } from 'sonner';
+import { cn } from "@/lib/utils";
 
 const CATEGORIES = [
     { value: 'cereal', label: 'Cereal' },
     { value: 'pulse', label: 'Pulse' },
     { value: 'cash_crop', label: 'Cash Crop' },
     { value: 'vegetable', label: 'Vegetable' },
+    { value: 'tuber', label: 'Tuber' },
+    { value: 'oilseed', label: 'Oilseed' },
 ];
 
 const SEASONS = [
     { value: 'spring', label: 'Spring' },
+    { value: 'summer', label: 'Summer' },
     { value: 'monsoon', label: 'Monsoon' },
     { value: 'autumn', label: 'Autumn' },
     { value: 'winter', label: 'Winter' },
@@ -57,6 +61,13 @@ const REGIONS = [
     { value: 'mountain', label: 'Mountain' },
 ];
 
+const DAY_LENGTH_TYPES = [
+    { value: '', label: 'Not applicable' },
+    { value: 'short-day', label: 'Short Day' },
+    { value: 'long-day', label: 'Long Day' },
+    { value: 'day-neutral', label: 'Day Neutral' },
+];
+
 const INITIAL_STATE = {
     name_en: '',
     name_np: '',
@@ -72,11 +83,17 @@ const INITIAL_STATE = {
     ph_max: '',
     ph_ideal: '',
     water_req: 'medium',
+    water_logging_tolerance: 'medium',
     region_suitable: '',
     drought_tolerance: 'medium',
     frost_sensitive: 'no',
     labor_req: 'medium',
     storage_life: 'medium',
+    growing_days: 100,
+    altitude_min: 0,
+    altitude_max: 3000,
+    day_length_sensitive: false,
+    day_length_type: '',
     n_need: 60,
     p_need: 40,
     k_need: 40
@@ -101,13 +118,31 @@ const KnowledgeBaseForm = () => {
                     const res = await adminService.getKnowledgeBaseDetail(id);
                     const data = res.data;
                     setForm({
-                        ...data,
+                        name_en: data.name_en || '',
+                        name_np: data.name_np || '',
+                        category: data.category || 'cereal',
+                        best_season: data.best_season || 'spring',
+                        other_seasons: data.other_seasons || '',
                         temp_min: data.temp_min ?? '',
                         temp_max: data.temp_max ?? '',
                         temp_ideal: data.temp_ideal ?? '',
+                        soil_ideal: data.soil_ideal || '',
+                        soil_other: data.soil_other || '',
                         ph_min: data.ph_min ?? '',
                         ph_max: data.ph_max ?? '',
                         ph_ideal: data.ph_ideal ?? '',
+                        water_req: data.water_req || 'medium',
+                        water_logging_tolerance: data.water_logging_tolerance || 'medium',
+                        region_suitable: data.region_suitable || '',
+                        drought_tolerance: data.drought_tolerance || 'medium',
+                        frost_sensitive: data.frost_sensitive || 'no',
+                        labor_req: data.labor_req || 'medium',
+                        storage_life: data.storage_life || 'medium',
+                        growing_days: data.growing_days ?? 100,
+                        altitude_min: data.altitude_min ?? 0,
+                        altitude_max: data.altitude_max ?? 3000,
+                        day_length_sensitive: data.day_length_sensitive ?? false,
+                        day_length_type: data.day_length_type || '',
                         n_need: data.n_need ?? 60,
                         p_need: data.p_need ?? 40,
                         k_need: data.k_need ?? 40,
@@ -218,6 +253,17 @@ const KnowledgeBaseForm = () => {
         if (isNaN(pNeed) || pNeed < 0) errs.p_need = "P requirement must be a positive number";
         if (isNaN(kNeed) || kNeed < 0) errs.k_need = "K requirement must be a positive number";
 
+        const growingDays = parseInt(form.growing_days);
+        const altMin = parseInt(form.altitude_min);
+        const altMax = parseInt(form.altitude_max);
+
+        if (isNaN(growingDays) || growingDays <= 0) errs.growing_days = "Growing days must be greater than 0";
+        if (isNaN(altMin) || altMin < 0) errs.altitude_min = "Minimum altitude cannot be negative";
+        if (isNaN(altMax) || altMax < 0) errs.altitude_max = "Maximum altitude cannot be negative";
+        if (!isNaN(altMin) && !isNaN(altMax) && altMin > altMax) {
+            errs.altitude_min = "Min altitude cannot exceed max altitude";
+        }
+
         setErrors(errs);
         return Object.keys(errs).length === 0;
     };
@@ -231,13 +277,31 @@ const KnowledgeBaseForm = () => {
 
         // Parse numbers
         const payload = {
-            ...form,
+            name_en: form.name_en.trim(),
+            name_np: form.name_np.trim(),
+            category: form.category,
+            best_season: form.best_season,
+            other_seasons: form.other_seasons.trim(),
             temp_min: parseFloat(form.temp_min),
             temp_max: parseFloat(form.temp_max),
             temp_ideal: parseFloat(form.temp_ideal),
+            soil_ideal: form.soil_ideal.trim(),
+            soil_other: form.soil_other.trim(),
             ph_min: parseFloat(form.ph_min),
             ph_max: parseFloat(form.ph_max),
             ph_ideal: parseFloat(form.ph_ideal),
+            water_req: form.water_req,
+            water_logging_tolerance: form.water_logging_tolerance,
+            region_suitable: form.region_suitable.trim(),
+            drought_tolerance: form.drought_tolerance,
+            frost_sensitive: form.frost_sensitive,
+            labor_req: form.labor_req,
+            storage_life: form.storage_life,
+            growing_days: parseInt(form.growing_days),
+            altitude_min: parseInt(form.altitude_min),
+            altitude_max: parseInt(form.altitude_max),
+            day_length_sensitive: form.day_length_sensitive,
+            day_length_type: form.day_length_sensitive && form.day_length_type ? form.day_length_type : null,
             n_need: parseFloat(form.n_need),
             p_need: parseFloat(form.p_need),
             k_need: parseFloat(form.k_need),
@@ -540,6 +604,19 @@ const KnowledgeBaseForm = () => {
                                 </div>
 
                                 <div className="space-y-2">
+                                    <Label htmlFor="water_logging_tolerance" className="font-bold text-slate-700">Water Logging Tolerance <span className="text-rose-500">*</span></Label>
+                                    <select 
+                                        id="water_logging_tolerance" 
+                                        name="water_logging_tolerance"
+                                        value={form.water_logging_tolerance} 
+                                        onChange={(e) => handleSelectChange('water_logging_tolerance', e.target.value)}
+                                        className="bg-white border border-slate-200 rounded-xl text-sm font-semibold px-4 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500 w-full"
+                                    >
+                                        {TOLERANCE_LEVELS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                    </select>
+                                </div>
+
+                                <div className="space-y-2">
                                     <Label htmlFor="drought_tolerance" className="font-bold text-slate-700">Drought Tolerance <span className="text-rose-500">*</span></Label>
                                     <select 
                                         id="drought_tolerance" 
@@ -618,6 +695,85 @@ const KnowledgeBaseForm = () => {
                                 </div>
                                 {errors.region_suitable && <p className="text-xs font-bold text-rose-500">{errors.region_suitable}</p>}
                                 <p className="text-[11px] text-slate-400 font-semibold mt-1">This configures which region match recommendations. E.g., Paddy matches Terai region primarily.</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Part 3b: Growth & Altitude */}
+                    <Card className="border-slate-100 shadow-sm overflow-hidden">
+                        <CardHeader className="bg-slate-50/50 border-b border-slate-100">
+                            <div className="flex items-center gap-2">
+                                <Layers className="w-5 h-5 text-emerald-600" />
+                                <CardTitle className="text-base font-bold text-slate-800">Growth & Altitude</CardTitle>
+                            </div>
+                            <CardDescription>Typical growing period and suitable elevation range.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div className="space-y-2">
+                                <Label htmlFor="growing_days" className="font-bold text-slate-700">Growing Days <span className="text-rose-500">*</span></Label>
+                                <Input 
+                                    id="growing_days" 
+                                    name="growing_days" 
+                                    type="number"
+                                    value={form.growing_days} 
+                                    onChange={handleChange}
+                                    placeholder="e.g., 120"
+                                    className={cn("rounded-xl border-slate-200 focus:ring-emerald-500", errors.growing_days && "border-rose-400 focus:ring-rose-500")}
+                                />
+                                {errors.growing_days && <p className="text-xs font-bold text-rose-500">{errors.growing_days}</p>}
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="altitude_min" className="font-bold text-slate-700">Min Altitude (m) <span className="text-rose-500">*</span></Label>
+                                <Input 
+                                    id="altitude_min" 
+                                    name="altitude_min" 
+                                    type="number"
+                                    value={form.altitude_min} 
+                                    onChange={handleChange}
+                                    placeholder="e.g., 0"
+                                    className={cn("rounded-xl border-slate-200 focus:ring-emerald-500", errors.altitude_min && "border-rose-400 focus:ring-rose-500")}
+                                />
+                                {errors.altitude_min && <p className="text-xs font-bold text-rose-500">{errors.altitude_min}</p>}
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="altitude_max" className="font-bold text-slate-700">Max Altitude (m) <span className="text-rose-500">*</span></Label>
+                                <Input 
+                                    id="altitude_max" 
+                                    name="altitude_max" 
+                                    type="number"
+                                    value={form.altitude_max} 
+                                    onChange={handleChange}
+                                    placeholder="e.g., 3000"
+                                    className={cn("rounded-xl border-slate-200 focus:ring-emerald-500", errors.altitude_max && "border-rose-400 focus:ring-rose-500")}
+                                />
+                                {errors.altitude_max && <p className="text-xs font-bold text-rose-500">{errors.altitude_max}</p>}
+                            </div>
+
+                            <div className="md:col-span-3 flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                                <div className="flex items-center gap-3">
+                                    <Switch
+                                        id="day_length_sensitive"
+                                        checked={form.day_length_sensitive}
+                                        onCheckedChange={(checked) => setForm(prev => ({ ...prev, day_length_sensitive: checked, day_length_type: checked ? prev.day_length_type : '' }))}
+                                    />
+                                    <Label htmlFor="day_length_sensitive" className="font-bold text-slate-700 cursor-pointer">Day-length sensitive crop</Label>
+                                </div>
+                                {form.day_length_sensitive && (
+                                    <div className="flex-1 space-y-2">
+                                        <Label htmlFor="day_length_type" className="font-bold text-slate-700">Day Length Type</Label>
+                                        <select 
+                                            id="day_length_type" 
+                                            name="day_length_type"
+                                            value={form.day_length_type} 
+                                            onChange={(e) => handleSelectChange('day_length_type', e.target.value)}
+                                            className="bg-white border border-slate-200 rounded-xl text-sm font-semibold px-4 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500 w-full sm:max-w-xs"
+                                        >
+                                            {DAY_LENGTH_TYPES.filter(opt => opt.value !== '').map(opt => (
+                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
                         </CardContent>
                     </Card>

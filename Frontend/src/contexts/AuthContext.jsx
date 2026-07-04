@@ -3,6 +3,17 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo } 
 import { authService } from '@/features/auth/services/auth.api';
 import { getApiErrorMessage } from '@/shared/utils/apiError';
 const AuthContext = createContext(undefined);
+
+/** Preserve role flags when profile API omits them (e.g. after page refresh). */
+function mergeUserProfile(fetchedUser, existingUser) {
+    if (!fetchedUser) return existingUser ?? null;
+    return {
+        ...fetchedUser,
+        is_admin: fetchedUser.is_admin ?? existingUser?.is_admin ?? false,
+        is_farmer: fetchedUser.is_farmer ?? existingUser?.is_farmer ?? false,
+    };
+}
+
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (!context) {
@@ -23,17 +34,20 @@ export function AuthProvider({ children }) {
             const parsedUser = storedUser ? JSON.parse(storedUser) : null;
             authService.getProfile(parsedUser?.id)
                 .then((res) => {
+                let profileUser = null;
                 if (res.data?.success) {
-                    setUser(res.data.data);
-                    localStorage.setItem('user', JSON.stringify(res.data.data));
+                    profileUser = res.data.data;
                 }
                 else if (res.data?.data) {
-                    setUser(res.data.data);
-                    localStorage.setItem('user', JSON.stringify(res.data.data));
+                    profileUser = res.data.data;
                 }
                 else if (res.data) {
-                    setUser(res.data);
-                    localStorage.setItem('user', JSON.stringify(res.data));
+                    profileUser = res.data;
+                }
+                if (profileUser) {
+                    const mergedUser = mergeUserProfile(profileUser, parsedUser);
+                    setUser(mergedUser);
+                    localStorage.setItem('user', JSON.stringify(mergedUser));
                 }
             })
                 .catch((err) => {
@@ -176,13 +190,17 @@ export function AuthProvider({ children }) {
             const profileId = user?.id || parsed?.id;
             if (!profileId) return;
             const res = await authService.getProfile(profileId);
+            let profileUser = null;
             if (res.data?.success) {
-                setUser(res.data.data);
-                localStorage.setItem('user', JSON.stringify(res.data.data));
+                profileUser = res.data.data;
             }
             else if (res.data?.data) {
-                setUser(res.data.data);
-                localStorage.setItem('user', JSON.stringify(res.data.data));
+                profileUser = res.data.data;
+            }
+            if (profileUser) {
+                const mergedUser = mergeUserProfile(profileUser, parsed);
+                setUser(mergedUser);
+                localStorage.setItem('user', JSON.stringify(mergedUser));
             }
         }
         catch (e) {

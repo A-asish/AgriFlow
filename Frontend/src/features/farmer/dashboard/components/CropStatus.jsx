@@ -1,5 +1,6 @@
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Sprout } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Sprout, ArrowRight } from 'lucide-react';
 const stageProgress = {
     seeding: 20,
     vegetative: 40,
@@ -9,6 +10,7 @@ const stageProgress = {
 };
 export function CropStatus({ crops, loading }) {
     const { t } = useLanguage();
+    const navigate = useNavigate();
     if (loading) {
         return (<div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
         <div className="flex items-center gap-2 mb-4">
@@ -21,13 +23,28 @@ export function CropStatus({ crops, loading }) {
       </div>);
     }
     return (<div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <Sprout className="w-5 h-5 text-green-600"/>
-        <h3 className="font-semibold text-base sm:text-lg text-gray-800">{t('dashboard.cropStatus')}</h3>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Sprout className="w-5 h-5 text-green-600"/>
+          <h3 className="font-semibold text-base sm:text-lg text-gray-800">{t('dashboard.cropStatus')}</h3>
+        </div>
+        <button
+          onClick={() => navigate('/crops')}
+          className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium transition-colors"
+        >
+          {t('common.viewAll')} <ArrowRight className="w-3 h-3" />
+        </button>
       </div>
       
       <div className="space-y-4 sm:space-y-5">
-        {crops.length > 0 ? (crops.map((crop) => (<div key={crop.id} className="p-3 rounded-lg bg-green-50/50 border border-green-100">
+        {crops.length > 0 ? (crops.map((crop) => (<div
+              key={crop.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(`/crops/${crop.id}`)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/crops/${crop.id}`); }}
+              className="p-3 rounded-lg bg-green-50/50 border border-green-100 cursor-pointer hover:bg-green-100/60 hover:border-green-200 hover:shadow-sm transition-all duration-200"
+            >
               <div className="flex items-center justify-between mb-2">
                 <span className="font-medium text-sm sm:text-base text-green-800 truncate">
                   {crop.name} {crop.name_np && `(${crop.name_np})`}

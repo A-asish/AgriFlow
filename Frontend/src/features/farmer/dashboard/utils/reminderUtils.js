@@ -1,77 +1,80 @@
-import { getNotificationType } from '@/features/common/utils/notificationFilters';
-import { getAppLanguage } from '@/shared/utils/appLanguage';
+// src/features/farmer/dashboard/utils/reminderUtils.js
 
-const PRIORITY_ORDER = { critical: 0, urgent: 1, high: 2, medium: 3, low: 4 };
-
-export function normalizeReminder(activity, source) {
-    const resolvedSource =
-        source ??
-        (getNotificationType(activity) === 'livestock' ? 'livestock' : 'crop');
-
-    const id = activity.notification_id ?? activity.id;
-    const sourceId = activity.source_id;
+/**
+ * Normalize a reminder/alert from the API into a consistent format for the UI
+ */
+export function normalizeReminder(alert, source) {
+    // ✅ Debug log to see what's coming in
+    console.log('🔍 normalizeReminder called:', { alert, source });
     
-    const rawCrop = activity.crop_id ?? activity.crop;
-    const cropId = (typeof rawCrop === 'object' && rawCrop !== null)
-        ? (rawCrop.id ?? rawCrop.crop_id)
-        : rawCrop ?? (resolvedSource === 'crop' ? sourceId : null);
+    if (!alert) {
+        console.warn('⚠️ normalizeReminder called with null/undefined alert');
+        return null;
+    }
 
-    const rawAnimal = activity.animal_id ?? activity.animal;
-    const animalId = (typeof rawAnimal === 'object' && rawAnimal !== null)
-        ? (rawAnimal.id ?? rawAnimal.animal_id)
-        : rawAnimal ?? (resolvedSource === 'livestock' ? sourceId : null);
+    // Determine source if not provided
+    const resolvedSource = source || alert.source || 
+        (alert.notification_type === 'livestock' ? 'livestock' : 'crop');
 
-    let actionUrl = activity.action_url;
-    if (!actionUrl) {
-        if (resolvedSource === 'crop' && cropId) {
-            actionUrl = `/crops/${cropId}`;
-        } else if (resolvedSource === 'livestock' && animalId) {
-            actionUrl = `/livestock/${animalId}`;
+    // ✅ Simple ID mapping - use alert.id directly
+    const id = alert.id || alert.notification_id || null;
+
+    // ✅ Simple title and message
+    const title = alert.title || alert.activity_type || 'Reminder';
+    const message = alert.message || alert.description || alert.details || '';
+
+    // ✅ Simple priority mapping
+    const priority = alert.priority || 'medium';
+    const priorityDisplay = alert.priority_display || 
+        (priority === 'critical' ? 'Critical - Overdue' :
+         priority === 'urgent' ? 'Urgent - Today' :
+         priority === 'high' ? 'High - 1-2 days' :
+         priority === 'medium' ? 'Medium - 3-4 days' :
+         'Low - 5+ days');
+
+    // ✅ Due date
+    const dueDate = alert.due_date || alert.scheduled_date || alert.created_at || null;
+
+    // ✅ Action URL
+    let actionUrl = alert.action_url || null;
+    if (!actionUrl && alert.source_id) {
+        if (resolvedSource === 'crop') {
+            actionUrl = `/crops/${alert.source_id}`;
+        } else if (resolvedSource === 'livestock') {
+            actionUrl = `/livestock/${alert.source_id}`;
         }
     }
 
-    const dueDate =
-        activity.due_date ??
-        activity.scheduled_date ??
-        activity.reminder_date ??
-        activity.created_at ??
-        null;
-
-    const lang = getAppLanguage();
-    const title = lang === 'np'
-        ? (activity.title_np ?? activity.title ?? activity.activity_type ?? activity.type_display ?? 'स्मरणपत्र')
-        : (activity.title ?? activity.activity_type ?? activity.type_display ?? 'Reminder');
-
-    const message = lang === 'np'
-        ? (activity.message_np ?? activity.description_np ?? activity.details_np ?? activity.message ?? activity.description ?? activity.details ?? '')
-        : (activity.message ?? activity.description ?? activity.details ?? '');
-
     return {
-        id,
+        id: id,
         source: resolvedSource,
-        title,
-        message,
-        dueDate,
-        priority: activity.priority ?? 'medium',
-        priorityDisplay: activity.priority_display,
-        isRead: Boolean(activity.is_read),
-        isCompleted: Boolean(activity.is_completed),
-        cropId,
-        animalId,
-        cropName: activity.crop_name ?? activity.crop?.name,
-        animalTag: activity.tag_number ?? activity.animal_tag ?? activity.animal?.tag_number,
-        actionUrl,
-        actionLabel: activity.action_label,
-        createdAt: activity.created_at,
-        raw: activity,
+        title: title,
+        message: message,
+        priority: priority,
+        priorityDisplay: priorityDisplay,
+        dueDate: dueDate,
+        isRead: alert.is_read || false,
+        isCompleted: alert.is_completed || false,
+        actionUrl: actionUrl,
+        actionLabel: alert.action_label || 'View Details',
+        createdAt: alert.created_at,
+        sourceId: alert.source_id,
+        cropName: alert.crop_name || alert.crop?.name,
+        animalTag: alert.animal_tag || alert.animal?.tag_number,
     };
 }
 
+/**
+ * Sort alerts by priority (critical first, then by due date)
+ */
 export function sortAlertsByPriority(alerts) {
+    const priorityOrder = { critical: 0, urgent: 1, high: 2, medium: 3, low: 4 };
+    
     return [...alerts].sort((a, b) => {
-        const pa = PRIORITY_ORDER[a.priority] ?? 99;
-        const pb = PRIORITY_ORDER[b.priority] ?? 99;
+        const pa = priorityOrder[a.priority] ?? 99;
+        const pb = priorityOrder[b.priority] ?? 99;
         if (pa !== pb) return pa - pb;
+        
         const da = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
         const db = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
         return da - db;
