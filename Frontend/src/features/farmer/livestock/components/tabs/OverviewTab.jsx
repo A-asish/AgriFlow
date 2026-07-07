@@ -33,7 +33,6 @@ function RelatedAlerts({ itemId, source }) {
                 const rawAlerts = source === 'crop' ? response.crop : response.livestock;
                 const normalized = (rawAlerts || []).map(a => normalizeReminder(a, source));
                 const filtered = normalized.filter(a => {
-                    // normalizeReminder stores the linked record ID in `sourceId`
                     return String(a.sourceId) === String(itemId);
                 });
                 setAlerts(filtered);
@@ -68,7 +67,13 @@ function RelatedAlerts({ itemId, source }) {
         }
 
         setFilteredAlerts(result);
-        setCurrentPage(1); // Reset to first page when filters change
+        // ✅ Only reset to page 1 if we're on a page that no longer exists
+        const totalPages = Math.ceil(result.length / ITEMS_PER_PAGE);
+        if (currentPage > totalPages && totalPages > 0) {
+            setCurrentPage(totalPages);
+        } else if (totalPages === 0) {
+            setCurrentPage(1);
+        }
     }, [alerts, filterStatus, filterPriority]);
 
     const handleMarkComplete = async (alertId) => {
@@ -112,7 +117,7 @@ function RelatedAlerts({ itemId, source }) {
         low: 'bg-green-50 text-green-700 border-green-100',
     };
 
-    const formatDueDate = (dateStr) => {
+    const formatDate = (dateStr) => {
         if (!dateStr) return null;
         const date = new Date(dateStr);
         if (isNaN(date.getTime())) return null;
@@ -127,9 +132,12 @@ function RelatedAlerts({ itemId, source }) {
     const totalItems = filteredAlerts.length;
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
+    // ✅ Fix: Don't auto-navigate when currentPage > totalPages
     useEffect(() => {
-        if (currentPage > totalPages && totalPages > 0) {
+        if (totalPages > 0 && currentPage > totalPages) {
             setCurrentPage(totalPages);
+        } else if (totalPages === 0) {
+            setCurrentPage(1);
         }
     }, [totalPages, currentPage]);
 
@@ -282,14 +290,27 @@ function RelatedAlerts({ itemId, source }) {
                                     <p className="text-sm text-gray-600 mt-1 whitespace-pre-line">
                                         {alert.message}
                                     </p>
-                                    {alert.dueDate && (
-                                        <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-                                            <Clock className="w-3.5 h-3.5" />
-                                            <span>
-                                                {t('dashboard.alertSent') || 'Sent'}: {formatDueDate(alert.dueDate)}
-                                            </span>
-                                        </div>
-                                    )}
+                                    {/* ✅ Show both Sent Date and Scheduled Date */}
+                                    <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
+                                        {/* Sent Date (created_at) */}
+                                        {alert.createdAt && (
+                                            <div className="flex items-center gap-1">
+                                                <Clock className="w-3.5 h-3.5" />
+                                                <span>
+                                                    {language === 'np' ? 'पठाइएको' : 'Sent'}: {formatDate(alert.createdAt)}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {/* Scheduled Date (due_date) */}
+                                        {alert.dueDate && (
+                                            <div className="flex items-center gap-1">
+                                                <Calendar className="w-3.5 h-3.5" />
+                                                <span>
+                                                    {language === 'np' ? 'निर्धारित मिति' : 'Scheduled'}: {formatDate(alert.dueDate)}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="shrink-0">

@@ -255,7 +255,7 @@ const notificationApi = {
             throw error;
         }
     },
-
+    
     /**
      * PATCH /api/notifications/{id}/ — Mark as read
      * For admin, uses admin endpoint

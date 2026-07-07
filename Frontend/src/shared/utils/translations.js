@@ -637,6 +637,7 @@ export const translations = {
             severityLow: 'Low',
             severityMedium: 'Medium',
             severityUrgent: 'Urgent',
+            scheduledDate: 'Schedule Date',
             sortNewest: 'Sort: newest',
             sortOldest: 'Sort: oldest',
             sortByPriority: 'Sort: priority',

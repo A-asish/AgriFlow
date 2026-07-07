@@ -61,7 +61,7 @@ export function DashboardAlerts() {
     const [statusFilter, setStatusFilter] = useState('active');
     const [priorityFilter, setPriorityFilter] = useState('all');
     const [dueDateFilter, setDueDateFilter] = useState('all');
-    const [sortOrder, setSortOrder] = useState('date_newest'); // Changed from 'priority' to 'date_newest'
+    const [sortOrder, setSortOrder] = useState('date_newest');
     const [itemsPerPage, setItemsPerPage] = useState(5);
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -244,7 +244,7 @@ export function DashboardAlerts() {
               : t('dashboard.noFarmAlerts');
 
     const hasActiveFilters =
-        priorityFilter !== 'all' || dueDateFilter !== 'all' || sortOrder !== 'priority';
+        priorityFilter !== 'all' || dueDateFilter !== 'all' || sortOrder !== 'date_newest';
 
     return (
         <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
@@ -365,7 +365,7 @@ export function DashboardAlerts() {
                             onClick={() => {
                                 setPriorityFilter('all');
                                 setDueDateFilter('all');
-                                setSortOrder('priority');
+                                setSortOrder('date_newest');
                             }}
                         >
                             {t('dashboard.clearFilters')}
@@ -476,7 +476,7 @@ export function DashboardAlerts() {
                                                     {alert.dueDate && (
                                                         <span className="flex items-center gap-1">
                                                             <Clock className="w-3 h-3" />
-                                                            {t('dashboard.alertSent')}:{' '}
+                                                            {t('dashboard.scheduledDate')}:{' '}
                                                             {formatDueDate(alert.dueDate)}
                                                         </span>
                                                     )}

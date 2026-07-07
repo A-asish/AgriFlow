@@ -48,6 +48,7 @@ const notifTypeOptions = [
   { label: '🎯 Targeted', value: 'targeted' },
   { label: '🌤️ Weather Alert', value: 'weather_alert' },
   { label: '🌾 Crop Care Reminder', value: 'crop_reminder' },
+  { label: '🐄 Animal Care Reminder', value: 'animal_reminder' },
   { label: '💰 Marketing/Promotion', value: 'marketing' }
 ];
 
@@ -85,6 +86,7 @@ const typeIcons = {
   targeted: '🎯',
   weather_alert: '🌤️',
   crop_reminder: '🌾',
+  animal_reminder: '🐄',
   marketing: '💰'
 };
 
@@ -93,6 +95,7 @@ const typeLabels = {
   targeted: 'Targeted',
   weather_alert: 'Weather Alert',
   crop_reminder: 'Crop Reminder',
+  animal_reminder: 'Animal Reminder',
   marketing: 'Marketing/Promo'
 };
 
